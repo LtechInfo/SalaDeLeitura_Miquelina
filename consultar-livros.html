@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consultar Livros – Sala de Leitura</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .book-card-full { cursor: pointer; }
+    .book-desc { font-size: .8rem; color: var(--text-light); line-height: 1.5; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="btn-home">🏠 Início</a>
+      <a href="cadastrar-livros.html">📝 Cadastrar</a>
+      <a href="lista-geral.html">📋 Lista Geral</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <div class="page-title"><span>🔍</span> Consultar Livros</div>
+  <div class="page-subtitle">Pesquise o acervo por título, autor, gênero ou ano</div>
+
+  <div class="filter-bar">
+    <div class="search-input-wrap" style="flex:3;min-width:220px;">
+      <label style="display:block;font-size:.78rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Busca</label>
+      <input type="text" id="searchInput" placeholder="Título ou autor..." style="padding-left:38px;">
+    </div>
+    <div class="form-group" style="flex:1;min-width:140px;">
+      <label>Gênero</label>
+      <select id="generoFilter">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex:1;min-width:120px;">
+      <label>Disponibilidade</label>
+      <select id="dispFilter">
+        <option value="">Todos</option>
+        <option value="disponivel">Disponível</option>
+        <option value="indisponivel">Indisponível</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex:1;min-width:110px;">
+      <label>Ano</label>
+      <input type="number" id="anoFilter" placeholder="Ex: 2020" min="1000" max="2099">
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="applyFilters()">🔍 Buscar</button>
+      <button class="btn btn-secondary" onclick="clearFilters()">🔄 Limpar</button>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <h2>📚 Resultados</h2>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <span class="total-badge" id="resultCount">0 livros</span>
+      <select id="viewMode" onchange="renderBooks()" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:.85rem;">
+        <option value="cards">🃏 Cards</option>
+        <option value="list">📋 Lista</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="booksContainer"></div>
+
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- Modal Detalhes -->
+<div id="bookModal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modalTitle">Detalhes do Livro</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <a href="registrar-emprestimo.html" class="btn btn-primary">📤 Registrar Empréstimo</a>
+      <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  let filteredBooks = [];
+  let currentPage = 1;
+  const perPage = 12;
+
+  // Populate genre filter
+  const gs = document.getElementById('generoFilter');
+  [...new Set(Books.getAll().map(b=>b.genero).filter(Boolean))].sort().forEach(g => {
+    const o = document.createElement('option'); o.value = g; o.textContent = g;
+    gs.appendChild(o);
+  });
+
+  function applyFilters() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const genero = document.getElementById('generoFilter').value;
+    const disp = document.getElementById('dispFilter').value;
+    const ano = document.getElementById('anoFilter').value;
+
+    filteredBooks = Books.getAll().filter(b => {
+      if (q && !b.titulo.toLowerCase().includes(q) && !b.autor.toLowerCase().includes(q)) return false;
+      if (genero && b.genero !== genero) return false;
+      if (disp === 'disponivel' && b.quantidadeDisponivel <= 0) return false;
+      if (disp === 'indisponivel' && b.quantidadeDisponivel > 0) return false;
+      if (ano && b.ano != ano) return false;
+      return true;
+    });
+    currentPage = 1;
+    renderBooks();
+  }
+
+  function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('generoFilter').value = '';
+    document.getElementById('dispFilter').value = '';
+    document.getElementById('anoFilter').value = '';
+    applyFilters();
+  }
+
+  const bookEmojis = {'Romance':'💕','Naturalismo':'🏭','Romantismo':'🌹','Modernismo':'🖊️','Realismo':'🔭','Poesia':'✨','Conto':'📜','Fantasia':'🧙','Aventura':'🗺️','Terror':'👻','Ficção Científica':'🚀','Autobiografia':'📓','Didático':'📐','Jovem Adulto':'🧡','Infantojuvenil':'🎨'};
+  function bookEmoji(g) { return bookEmojis[g] || '📖'; }
+
+  function renderBooks() {
+    const mode = document.getElementById('viewMode').value;
+    const total = filteredBooks.length;
+    document.getElementById('resultCount').textContent = `${total} livro(s)`;
+
+    const start = (currentPage - 1) * perPage;
+    const page = filteredBooks.slice(start, start + perPage);
+    const container = document.getElementById('booksContainer');
+
+    if (!total) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><h3>Nenhum livro encontrado</h3><p>Tente buscar com outros termos ou remova os filtros.</p></div>`;
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    if (mode === 'cards') {
+      container.innerHTML = `<div class="books-grid">${page.map(b => `
+        <div class="book-card book-card-full" onclick="openModal('${b.id}')">
+          <div class="book-cover">
+            <span style="font-size:56px">${bookEmoji(b.genero)}</span>
+            <span class="book-available-badge badge ${b.quantidadeDisponivel>0?'badge-success':'badge-danger'}">${b.quantidadeDisponivel>0?'Disponível':'Indisponível'}</span>
+          </div>
+          <div class="book-info">
+            <div class="book-title">${b.titulo}</div>
+            <div class="book-author">✍️ ${b.autor}</div>
+            <div class="book-meta">
+              ${b.genero?`<span class="badge badge-primary">${b.genero}</span>`:''}
+              ${b.ano?`<span class="badge badge-secondary">${b.ano}</span>`:''}
+            </div>
+            ${b.descricao?`<div class="book-desc">${b.descricao}</div>`:''}
+          </div>
+          <div class="book-actions">
+            <span style="font-size:.8rem;color:var(--text-light);">📦 ${b.quantidadeDisponivel} de ${b.quantidade} disponíveis</span>
+          </div>
+        </div>`).join('')}</div>`;
+    } else {
+      container.innerHTML = `<div class="table-wrapper"><table>
+        <thead><tr><th>Título</th><th>Autor</th><th>Gênero</th><th>Ano</th><th>Editora</th><th>Disponível</th><th>Ações</th></tr></thead>
+        <tbody>${page.map(b => `<tr>
+          <td><strong>${b.titulo}</strong></td>
+          <td>${b.autor}</td>
+          <td>${b.genero?`<span class="badge badge-primary">${b.genero}</span>`:'-'}</td>
+          <td>${b.ano||'-'}</td>
+          <td>${b.editora||'-'}</td>
+          <td><span class="badge ${b.quantidadeDisponivel>0?'badge-success':'badge-danger'}">${b.quantidadeDisponivel}/${b.quantidade}</span></td>
+          <td><button class="btn btn-secondary btn-sm" onclick="openModal('${b.id}')">👁️ Ver</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+    }
+
+    renderPagination(total);
+  }
+
+  function renderPagination(total) {
+    const pages = Math.ceil(total / perPage);
+    if (pages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+    let html = '';
+    if (currentPage > 1) html += `<button onclick="goPage(${currentPage-1})">‹ Anterior</button>`;
+    for (let i = 1; i <= pages; i++) {
+      if (i === 1 || i === pages || Math.abs(i - currentPage) <= 2)
+        html += `<button class="${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+      else if (Math.abs(i - currentPage) === 3) html += '<button disabled>…</button>';
+    }
+    if (currentPage < pages) html += `<button onclick="goPage(${currentPage+1})">Próximo ›</button>`;
+    document.getElementById('pagination').innerHTML = html;
+  }
+
+  function goPage(p) { currentPage = p; renderBooks(); window.scrollTo({top:300,behavior:'smooth'}); }
+
+  function openModal(id) {
+    const b = Books.getById(id);
+    if (!b) return;
+    document.getElementById('modalTitle').textContent = b.titulo;
+    document.getElementById('modalBody').innerHTML = `
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div style="flex-shrink:0;width:100px;height:130px;background:linear-gradient(135deg,var(--primary-xlight),var(--primary-light));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:52px;">
+          ${bookEmoji(b.genero)}
+        </div>
+        <div style="flex:1;min-width:180px">
+          <h2 style="font-size:1.2rem;margin-bottom:4px">${b.titulo}</h2>
+          <p style="color:var(--text-light);font-size:.92rem;margin-bottom:10px">✍️ ${b.autor}</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            ${b.genero?`<span class="badge badge-primary">${b.genero}</span>`:''}
+            ${b.ano?`<span class="badge badge-secondary">${b.ano}</span>`:''}
+            <span class="badge ${b.quantidadeDisponivel>0?'badge-success':'badge-danger'}">${b.quantidadeDisponivel>0?'Disponível':'Indisponível'}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.87rem">
+            ${b.editora?`<div><span class="text-muted">Editora:</span> ${b.editora}</div>`:''}
+            ${b.isbn?`<div><span class="text-muted">ISBN:</span> ${b.isbn}</div>`:''}
+            <div><span class="text-muted">Exemplares:</span> ${b.quantidade}</div>
+            <div><span class="text-muted">Disponíveis:</span> <strong>${b.quantidadeDisponivel}</strong></div>
+          </div>
+        </div>
+      </div>
+      ${b.descricao?`<div style="margin-top:16px;padding:14px;background:var(--bg);border-radius:10px;font-size:.9rem;line-height:1.6;color:var(--text-light)">${b.descricao}</div>`:''}`;
+    document.getElementById('bookModal').style.display = 'flex';
+  }
+
+  function closeModal() { document.getElementById('bookModal').style.display = 'none'; }
+  document.getElementById('bookModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+  document.getElementById('searchInput').addEventListener('keyup', e => { if (e.key === 'Enter') applyFilters(); });
+
+  // Init
+  applyFilters();
+</script>
+</body>
+</html>

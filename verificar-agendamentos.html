@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificar Agendamentos – Sala de Leitura</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .cal-header { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-bottom: 4px; }
+    .cal-header-day { text-align: center; font-size: .78rem; font-weight: 700; color: var(--text-light); padding: 6px 0; text-transform: uppercase; }
+    .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .cal-nav h3 { font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); text-transform: capitalize; }
+    .view-toggle { display: flex; gap: 4px; background: #eceff1; border-radius: 8px; padding: 3px; }
+    .view-btn { padding: 7px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: .83rem; font-weight: 600; color: var(--text-light); background: none; transition: var(--transition); }
+    .view-btn.active { background: #fff; color: var(--primary-dark); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .timeline { display: flex; flex-direction: column; gap: 14px; }
+    .timeline-day { margin-bottom: 4px; }
+    .timeline-day-header { font-weight: 700; color: var(--primary-dark); font-size: .95rem; padding: 8px 0; border-bottom: 2px solid var(--primary-light); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .timeline-item { display: flex; gap: 14px; padding: 12px 16px; background: #fff; border-radius: 10px; border-left: 4px solid var(--primary); box-shadow: var(--card-shadow); margin-bottom: 8px; }
+    .timeline-item.pendente { border-left-color: var(--warning); }
+    .timeline-item.cancelado { border-left-color: #9e9e9e; opacity: .6; }
+    .timeline-time { min-width: 90px; font-weight: 700; font-size: .88rem; color: var(--primary-dark); }
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="btn-home">🏠 Início</a>
+      <a href="agendar-sala.html">📅 Agendar</a>
+      <a href="relatorio-agendamentos.html">📈 Relatório</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <div class="page-title"><span>🗓️</span> Verificar Agendamentos</div>
+  <div class="page-subtitle">Visualize todos os agendamentos da sala de leitura</div>
+
+  <div class="stats-bar mb-3" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-info"><h3 id="sTotalAgs">0</h3><p>Total</p></div></div>
+    <div class="stat-card success"><div class="stat-icon">✅</div><div class="stat-info"><h3 id="sConfirm">0</h3><p>Confirmados</p></div></div>
+    <div class="stat-card warning"><div class="stat-icon">⏳</div><div class="stat-info"><h3 id="sPend">0</h3><p>Pendentes</p></div></div>
+    <div class="stat-card danger"><div class="stat-icon">🚀</div><div class="stat-info"><h3 id="sHoje">0</h3><p>Hoje</p></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <div class="cal-nav" style="flex:1;margin:0">
+          <button class="btn btn-secondary btn-sm" onclick="prevMonth()">‹ Anterior</button>
+          <h3 id="calTitle"></h3>
+          <button class="btn btn-secondary btn-sm" onclick="nextMonth()">Próximo ›</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div class="view-toggle">
+            <button class="view-btn active" id="calViewBtn" onclick="setView('cal')">🗓️ Calendário</button>
+            <button class="view-btn" id="listViewBtn" onclick="setView('list')">📋 Lista</button>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="location.href='agendar-sala.html'">+ Novo</button>
+        </div>
+      </div>
+
+      <!-- Calendar View -->
+      <div id="calendarView">
+        <div class="cal-header">
+          <div class="cal-header-day">Dom</div>
+          <div class="cal-header-day">Seg</div>
+          <div class="cal-header-day">Ter</div>
+          <div class="cal-header-day">Qua</div>
+          <div class="cal-header-day">Qui</div>
+          <div class="cal-header-day">Sex</div>
+          <div class="cal-header-day">Sáb</div>
+        </div>
+        <div class="calendar-grid" id="calGrid"></div>
+      </div>
+
+      <!-- List View -->
+      <div id="listView" style="display:none">
+        <div class="filter-bar" style="margin-bottom:16px;background:var(--bg);padding:14px">
+          <div class="form-group" style="flex:1;min-width:130px">
+            <label>Status</label>
+            <select id="statusFilter" onchange="renderList()">
+              <option value="">Todos</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="pendente">Pendente</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+          <div class="search-input-wrap" style="flex:2;min-width:180px">
+            <label style="display:block;font-size:.78rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Buscar</label>
+            <input type="text" id="listSearch" placeholder="Turma, responsável..." oninput="renderList()">
+          </div>
+        </div>
+        <div id="listContainer" class="timeline"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div id="detailModal" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><span>📅 Detalhes do Agendamento</span><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body" id="detailBody"></div>
+    <div class="modal-footer">
+      <a href="agendar-sala.html" class="btn btn-primary btn-sm">✏️ Editar</a>
+      <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  let currentYear, currentMonth, currentView = 'cal';
+  const now = new Date();
+  currentYear = now.getFullYear();
+  currentMonth = now.getMonth();
+
+  function setView(v) {
+    currentView = v;
+    document.getElementById('calendarView').style.display = v==='cal' ? '' : 'none';
+    document.getElementById('listView').style.display = v==='list' ? '' : 'none';
+    document.getElementById('calViewBtn').classList.toggle('active', v==='cal');
+    document.getElementById('listViewBtn').classList.toggle('active', v==='list');
+    if (v==='list') renderList(); else renderCalendar();
+  }
+
+  function prevMonth() { currentMonth--; if(currentMonth<0){currentMonth=11;currentYear--;} renderCalendar(); }
+  function nextMonth() { currentMonth++; if(currentMonth>11){currentMonth=0;currentYear++;} renderCalendar(); }
+
+  function renderCalendar() {
+    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    document.getElementById('calTitle').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+    const first = new Date(currentYear, currentMonth, 1).getDay();
+    const days = new Date(currentYear, currentMonth+1, 0).getDate();
+    const todayStr = today();
+    const ags = Agendamentos.getAll();
+
+    let html = '';
+    for (let i=0; i<first; i++) html += `<div class="cal-day other-month"></div>`;
+    for (let d=1; d<=days; d++) {
+      const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dayAgs = ags.filter(a => a.data===dateStr && a.status!=='cancelado');
+      html += `<div class="cal-day ${dateStr===todayStr?'today':''}" onclick="showDayModal('${dateStr}')">
+        <div class="cal-num">${d}</div>
+        ${dayAgs.map(a=>`<div class="cal-event ${a.status}" title="${a.responsavel}">${a.horarioInicio} ${a.turma}</div>`).join('')}
+      </div>`;
+    }
+    document.getElementById('calGrid').innerHTML = html;
+    updateStats();
+  }
+
+  function renderList() {
+    const q = (document.getElementById('listSearch').value||'').toLowerCase();
+    const sf = document.getElementById('statusFilter').value;
+    let ags = Agendamentos.getAll()
+      .filter(a => {
+        if (sf && a.status!==sf) return false;
+        if (q && !a.turma.toLowerCase().includes(q) && !a.responsavel.toLowerCase().includes(q) && !a.proposito.toLowerCase().includes(q)) return false;
+        return true;
+      })
+      .sort((a,b) => a.data.localeCompare(b.data)||a.horarioInicio.localeCompare(b.horarioInicio));
+
+    const grouped = {};
+    ags.forEach(a => { if (!grouped[a.data]) grouped[a.data]=[]; grouped[a.data].push(a); });
+
+    if (!ags.length) {
+      document.getElementById('listContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">🗓️</div><h3>Nenhum agendamento encontrado</h3></div>`;
+      return;
+    }
+
+    document.getElementById('listContainer').innerHTML = Object.entries(grouped).map(([date, items]) => `
+      <div class="timeline-day">
+        <div class="timeline-day-header">
+          📅 ${formatDate(date)}
+          ${date===today()?'<span class="badge badge-primary">Hoje</span>':''}
+        </div>
+        ${items.map(a=>`
+          <div class="timeline-item ${a.status}" onclick="openDetail('${a.id}')">
+            <div class="timeline-time">${a.horarioInicio}<br><span style="font-size:.75rem;color:var(--text-light)">até ${a.horarioFim}</span></div>
+            <div style="flex:1">
+              <div class="fw-bold">${a.turma}</div>
+              <div class="text-muted" style="font-size:.82rem">${a.responsavel}</div>
+              <div style="font-size:.8rem;margin-top:2px">${a.proposito}</div>
+            </div>
+            ${statusBadge(a.status)}
+          </div>`).join('')}
+      </div>`).join('');
+  }
+
+  function showDayModal(dateStr) {
+    const ags = Agendamentos.getAll().filter(a=>a.data===dateStr);
+    if (!ags.length) {
+      if (confirm(`Nenhum agendamento em ${formatDate(dateStr)}.\nDeseja criar um agendamento para esta data?`)) {
+        location.href = 'agendar-sala.html';
+      }
+      return;
+    }
+    document.getElementById('detailBody').innerHTML = `
+      <h3 style="margin-bottom:14px;color:var(--primary-dark)">📅 ${formatDate(dateStr)}</h3>
+      ${ags.map(a=>`
+        <div style="padding:12px;background:var(--bg);border-radius:10px;margin-bottom:10px;border-left:3px solid var(--primary)">
+          <div class="fw-bold">${a.horarioInicio} – ${a.horarioFim}: ${a.turma}</div>
+          <div class="text-muted" style="font-size:.85rem">${a.responsavel}</div>
+          <div style="font-size:.82rem;margin-top:4px">${a.proposito}</div>
+          <div style="margin-top:6px">${statusBadge(a.status)}</div>
+        </div>`).join('')}`;
+    document.getElementById('detailModal').style.display='flex';
+  }
+
+  function openDetail(id) {
+    const a = Agendamentos.getById(id);
+    if (!a) return;
+    document.getElementById('detailBody').innerHTML = `
+      <div style="display:grid;gap:10px;font-size:.9rem">
+        <div><span class="text-muted">Responsável:</span> <strong>${a.responsavel}</strong></div>
+        <div><span class="text-muted">Turma:</span> <strong>${a.turma}</strong></div>
+        <div><span class="text-muted">Data:</span> <strong>${formatDate(a.data)}</strong></div>
+        <div><span class="text-muted">Horário:</span> <strong>${a.horarioInicio} – ${a.horarioFim}</strong></div>
+        <div><span class="text-muted">Propósito:</span> ${a.proposito}</div>
+        <div><span class="text-muted">Status:</span> ${statusBadge(a.status)}</div>
+      </div>`;
+    document.getElementById('detailModal').style.display='flex';
+  }
+
+  function closeModal() { document.getElementById('detailModal').style.display='none'; }
+  document.getElementById('detailModal').addEventListener('click', e=>{if(e.target===e.currentTarget)closeModal();});
+
+  function updateStats() {
+    const ags = Agendamentos.getAll();
+    const ativos = ags.filter(a=>a.status!=='cancelado');
+    document.getElementById('sTotalAgs').textContent = ativos.length;
+    document.getElementById('sConfirm').textContent = ags.filter(a=>a.status==='confirmado').length;
+    document.getElementById('sPend').textContent = ags.filter(a=>a.status==='pendente').length;
+    document.getElementById('sHoje').textContent = ags.filter(a=>a.data===today()&&a.status!=='cancelado').length;
+  }
+
+  renderCalendar();
+</script>
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório de Empréstimos – Sala de Leitura</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+    @media(max-width:768px){ .charts-grid{grid-template-columns:1fr;} }
+    .chart-card { background:#fff; border-radius:var(--radius); box-shadow:var(--card-shadow); border:1px solid var(--border); overflow:hidden; }
+    .chart-title { padding:14px 18px; font-weight:700; font-size:.95rem; color:var(--primary-dark); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+    .chart-body { padding:16px; }
+    .rank-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0; }
+    .rank-num { width:26px; height:26px; border-radius:50%; background:var(--primary-xlight); color:var(--primary-dark); display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:700; flex-shrink:0; }
+    .rank-bar-wrap { flex:1; }
+    .rank-bar { height:8px; background:linear-gradient(90deg,var(--primary),var(--accent)); border-radius:4px; }
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="btn-home">🏠 Início</a>
+      <a href="registrar-emprestimo.html">📤 Novo Empréstimo</a>
+      <a href="registrar-devolucao.html">📥 Devolução</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <div class="page-title"><span>📊</span> Relatório de Empréstimos</div>
+  <div class="page-subtitle">Estatísticas detalhadas e análise do acervo em circulação</div>
+
+  <!-- Filters -->
+  <div class="filter-bar mb-3">
+    <div class="form-group" style="flex:1;min-width:130px">
+      <label>Data Início</label>
+      <input type="date" id="dateStart">
+    </div>
+    <div class="form-group" style="flex:1;min-width:130px">
+      <label>Data Fim</label>
+      <input type="date" id="dateEnd">
+    </div>
+    <div class="form-group" style="flex:1;min-width:130px">
+      <label>Status</label>
+      <select id="statusFilter">
+        <option value="">Todos</option>
+        <option value="ativo">Ativo</option>
+        <option value="atrasado">Atrasado</option>
+        <option value="devolvido">Devolvido</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex:1;min-width:130px">
+      <label>Tipo de Pessoa</label>
+      <select id="tipoFilter">
+        <option value="">Todos</option>
+        <option value="Aluno">Aluno</option>
+        <option value="Professor">Professor</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="applyFilters()">📊 Gerar</button>
+      <button class="btn btn-secondary" onclick="clearFilters()">🔄 Limpar</button>
+      <button class="btn btn-success" onclick="exportCSV()">⬇️ CSV</button>
+      <button class="btn btn-secondary" onclick="window.print()">🖨️</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar mb-3">
+    <div class="stat-card"><div class="stat-icon">📤</div><div class="stat-info"><h3 id="sTotal">0</h3><p>Total de Empréstimos</p></div></div>
+    <div class="stat-card warning"><div class="stat-icon">📖</div><div class="stat-info"><h3 id="sAtivos">0</h3><p>Ativos</p></div></div>
+    <div class="stat-card danger"><div class="stat-icon">⚠️</div><div class="stat-info"><h3 id="sAtrasados">0</h3><p>Atrasados</p></div></div>
+    <div class="stat-card success"><div class="stat-icon">✅</div><div class="stat-info"><h3 id="sDevolvidos">0</h3><p>Devolvidos</p></div></div>
+    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-info"><h3 id="sMulta">R$ 0</h3><p>Total em Multas</p></div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">📊 Status dos Empréstimos</div>
+      <div class="chart-body"><canvas id="statusChart" height="220"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">📈 Empréstimos por Mês</div>
+      <div class="chart-body"><canvas id="monthChart" height="220"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🏆 Livros Mais Emprestados</div>
+      <div class="chart-body" id="topBooksChart"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">👥 Alunos com Mais Empréstimos</div>
+      <div class="chart-body" id="topPeopleChart"></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="section-header">
+    <h2>📋 Detalhamento</h2>
+    <span class="total-badge" id="tableCount">0 registros</span>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Pessoa</th><th>Tipo</th><th>Turma</th><th>Livro</th><th>Empréstimo</th><th>Prazo</th><th>Devolução</th><th>Status</th><th>Multa</th></tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  let filtered = [];
+  let chartStatus = null, chartMonth = null;
+
+  // Default date range: current month
+  const d = new Date();
+  document.getElementById('dateStart').value = `${d.getFullYear()}-01-01`;
+  document.getElementById('dateEnd').value = today();
+
+  function applyFilters() {
+    const ds = document.getElementById('dateStart').value;
+    const de = document.getElementById('dateEnd').value;
+    const sf = document.getElementById('statusFilter').value;
+    const tf = document.getElementById('tipoFilter').value;
+
+    filtered = Emprestimos.getAll().filter(e => {
+      if (ds && e.dataEmprestimo < ds) return false;
+      if (de && e.dataEmprestimo > de) return false;
+      if (sf && e.status !== sf) return false;
+      if (tf) { const p = Pessoas.getById(e.pessoaId); if (!p || p.tipo !== tf) return false; }
+      return true;
+    });
+
+    updateStats();
+    renderCharts();
+    renderTable();
+  }
+
+  function clearFilters() {
+    document.getElementById('dateStart').value = `${d.getFullYear()}-01-01`;
+    document.getElementById('dateEnd').value = today();
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('tipoFilter').value = '';
+    applyFilters();
+  }
+
+  function updateStats() {
+    const total = filtered.length;
+    const ativos = filtered.filter(e=>e.status==='ativo').length;
+    const atrasados = filtered.filter(e=>e.status==='atrasado').length;
+    const devolvidos = filtered.filter(e=>e.status==='devolvido').length;
+    const multa = filtered.reduce((s,e)=>s+parseFloat(e.multa||0),0);
+    document.getElementById('sTotal').textContent = total;
+    document.getElementById('sAtivos').textContent = ativos;
+    document.getElementById('sAtrasados').textContent = atrasados;
+    document.getElementById('sDevolvidos').textContent = devolvidos;
+    document.getElementById('sMulta').textContent = `R$ ${multa.toFixed(2)}`;
+  }
+
+  function renderCharts() {
+    // Status chart
+    const statusData = {
+      ativo: filtered.filter(e=>e.status==='ativo').length,
+      atrasado: filtered.filter(e=>e.status==='atrasado').length,
+      devolvido: filtered.filter(e=>e.status==='devolvido').length,
+    };
+    if (chartStatus) chartStatus.destroy();
+    chartStatus = new Chart(document.getElementById('statusChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Ativo','Atrasado','Devolvido'],
+        datasets: [{ data: Object.values(statusData), backgroundColor: ['#26a69a','#e53935','#607d8b'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { plugins: { legend: { position: 'bottom' } }, cutout: '62%' }
+    });
+
+    // Monthly chart
+    const months = {};
+    filtered.forEach(e => {
+      const m = e.dataEmprestimo.substring(0,7);
+      months[m] = (months[m]||0) + 1;
+    });
+    const sortedMonths = Object.keys(months).sort();
+    const monthLabels = sortedMonths.map(m => {
+      const [y,mo] = m.split('-');
+      const mNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      return `${mNames[parseInt(mo)-1]}/${y.slice(2)}`;
+    });
+    if (chartMonth) chartMonth.destroy();
+    if (sortedMonths.length) {
+      chartMonth = new Chart(document.getElementById('monthChart'), {
+        type: 'bar',
+        data: {
+          labels: monthLabels,
+          datasets: [{ label: 'Empréstimos', data: sortedMonths.map(m=>months[m]), backgroundColor: 'rgba(0,188,212,.7)', borderColor: '#0097A7', borderWidth: 2, borderRadius: 6 }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+    } else {
+      document.getElementById('monthChart').parentElement.innerHTML = '<p class="text-muted text-center" style="padding:40px">Sem dados no período</p>';
+    }
+
+    // Top books
+    const bookCount = {};
+    filtered.forEach(e => { bookCount[e.livroId] = (bookCount[e.livroId]||0)+1; });
+    const topBooks = Object.entries(bookCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const maxB = topBooks[0]?.[1] || 1;
+    document.getElementById('topBooksChart').innerHTML = topBooks.length ? topBooks.map(([id,n],i) => {
+      const b = Books.getById(id);
+      return `<div class="rank-item">
+        <div class="rank-num">${i+1}</div>
+        <div class="rank-bar-wrap">
+          <div style="font-size:.85rem;font-weight:600">${b?b.titulo:'?'}</div>
+          <div class="rank-bar" style="width:${(n/maxB*100).toFixed(0)}%;margin-top:4px"></div>
+        </div>
+        <span class="badge badge-primary">${n}x</span>
+      </div>`;
+    }).join('') : '<p class="text-muted text-center" style="padding:20px">Sem dados</p>';
+
+    // Top people
+    const peopleCount = {};
+    filtered.forEach(e => { peopleCount[e.pessoaId] = (peopleCount[e.pessoaId]||0)+1; });
+    const topPeople = Object.entries(peopleCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const maxP = topPeople[0]?.[1] || 1;
+    document.getElementById('topPeopleChart').innerHTML = topPeople.length ? topPeople.map(([id,n],i) => {
+      const p = Pessoas.getById(id);
+      return `<div class="rank-item">
+        <div class="rank-num">${i+1}</div>
+        <div class="rank-bar-wrap">
+          <div style="font-size:.85rem;font-weight:600">${p?p.nome:'?'}</div>
+          <div class="rank-bar" style="width:${(n/maxP*100).toFixed(0)}%;margin-top:4px;background:linear-gradient(90deg,var(--success),#80cbc4)"></div>
+        </div>
+        <span class="badge badge-success">${n}x</span>
+      </div>`;
+    }).join('') : '<p class="text-muted text-center" style="padding:20px">Sem dados</p>';
+  }
+
+  function renderTable() {
+    document.getElementById('tableCount').textContent = `${filtered.length} registros`;
+    const tbody = document.getElementById('tableBody');
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="9" class="table-empty">Nenhum registro encontrado</td></tr>`; return;
+    }
+    const sorted = [...filtered].sort((a,b)=>b.dataEmprestimo.localeCompare(a.dataEmprestimo));
+    tbody.innerHTML = sorted.map(e => {
+      const p = Pessoas.getById(e.pessoaId);
+      const b = Books.getById(e.livroId);
+      const multa = parseFloat(e.multa)||0;
+      return `<tr>
+        <td>${p?p.nome:'-'}</td>
+        <td>${p?`<span class="badge badge-${p.tipo==='Aluno'?'primary':'info'}">${p.tipo}</span>`:'-'}</td>
+        <td>${p?p.turma||'-':'-'}</td>
+        <td>${b?b.titulo:'-'}</td>
+        <td>${formatDate(e.dataEmprestimo)}</td>
+        <td>${formatDate(e.dataPrevistaDevolucao)}</td>
+        <td>${e.dataDevolvido?formatDate(e.dataDevolvido):'-'}</td>
+        <td>${statusBadge(e.status)}</td>
+        <td>${multa>0?`<span style="color:var(--warning);font-weight:700">R$ ${multa.toFixed(2)}</span>`:'-'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function exportCSV() {
+    const rows = [['Pessoa','Tipo','Turma','Livro','Data Empréstimo','Prazo Devolução','Data Devolvido','Status','Multa']];
+    filtered.forEach(e => {
+      const p = Pessoas.getById(e.pessoaId);
+      const b = Books.getById(e.livroId);
+      rows.push([p?p.nome:'',p?p.tipo:'',p?p.turma||'':'',b?b.titulo:'',e.dataEmprestimo,e.dataPrevistaDevolucao,e.dataDevolvido||'',e.status,e.multa||0]);
+    });
+    const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+    a.download = `relatorio_emprestimos_${today()}.csv`;
+    a.click();
+    showToast('Relatório exportado!');
+  }
+
+  applyFilters();
+</script>
+</body>
+</html>

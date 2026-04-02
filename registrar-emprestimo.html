@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar Empréstimo – Sala de Leitura</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .search-results {
+      position: absolute; top: 100%; left: 0; right: 0; background: #fff;
+      border: 1.5px solid var(--primary-light); border-top: none; border-radius: 0 0 10px 10px;
+      z-index: 50; max-height: 220px; overflow-y: auto; box-shadow: 0 8px 20px rgba(0,0,0,.12);
+    }
+    .search-result-item {
+      padding: 10px 14px; cursor: pointer; font-size: .9rem; border-bottom: 1px solid #f0f0f0;
+      transition: background .15s;
+    }
+    .search-result-item:hover { background: var(--primary-xlight); }
+    .selected-box {
+      background: var(--primary-xlight); border: 1.5px solid var(--primary-light);
+      border-radius: 10px; padding: 14px 16px; margin-top: 8px; display: none;
+    }
+    .selected-box.show { display: flex; align-items: center; gap: 14px; }
+    .selected-box .remove-btn { margin-left: auto; cursor: pointer; font-size: 1.2rem; opacity: .5; }
+    .selected-box .remove-btn:hover { opacity: 1; color: var(--danger); }
+    .step-indicator {
+      display: flex; gap: 0; margin-bottom: 28px; border-radius: 12px; overflow: hidden;
+      box-shadow: var(--card-shadow);
+    }
+    .step {
+      flex: 1; padding: 14px 10px; text-align: center; background: #eceff1;
+      font-size: .83rem; font-weight: 600; color: var(--text-light); border-right: 1px solid #ddd;
+    }
+    .step:last-child { border-right: none; }
+    .step.active { background: linear-gradient(135deg, var(--primary-dark), var(--accent)); color: #fff; }
+    .step.done { background: var(--success); color: #fff; }
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="btn-home">🏠 Início</a>
+      <a href="registrar-devolucao.html">📥 Devolução</a>
+      <a href="relatorio-emprestimos.html">📊 Relatório</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <div class="page-title"><span>📤</span> Registrar Empréstimo</div>
+  <div class="page-subtitle">Realize a saída de livros para alunos e professores</div>
+
+  <div class="step-indicator">
+    <div class="step active" id="step1ind">1️⃣ Selecionar Pessoa</div>
+    <div class="step" id="step2ind">2️⃣ Selecionar Livro</div>
+    <div class="step" id="step3ind">3️⃣ Confirmar</div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">📤 Novo Empréstimo</div>
+    <div class="card-body">
+      <!-- Step 1: Person -->
+      <div id="step1">
+        <h3 style="margin-bottom:14px;color:var(--primary-dark)">Passo 1: Selecione a Pessoa</h3>
+        <div style="position:relative">
+          <label class="mb-1" style="font-size:.85rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px">Buscar por nome ou RA</label>
+          <input type="text" id="pessoaSearch" placeholder="Digite o nome ou RA do aluno/professor..." autocomplete="off">
+          <div class="search-results" id="pessoaResults" style="display:none"></div>
+        </div>
+        <div class="selected-box" id="pessoaSelected">
+          <span style="font-size:2rem">👤</span>
+          <div>
+            <div class="fw-bold" id="pessoaSelectedNome"></div>
+            <div class="text-muted" id="pessoaSelectedInfo"></div>
+          </div>
+          <span class="remove-btn" onclick="clearPessoa()">✕</span>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <!-- Step 2: Book -->
+      <div id="step2">
+        <h3 style="margin-bottom:14px;color:var(--primary-dark)">Passo 2: Selecione o Livro</h3>
+        <div style="position:relative">
+          <label style="font-size:.85rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px">Buscar por título ou autor</label>
+          <input type="text" id="livroSearch" placeholder="Digite o título ou autor do livro..." autocomplete="off" style="margin-top:6px">
+          <div class="search-results" id="livroResults" style="display:none"></div>
+        </div>
+        <div class="selected-box" id="livroSelected">
+          <span style="font-size:2rem">📖</span>
+          <div>
+            <div class="fw-bold" id="livroSelectedTitulo"></div>
+            <div class="text-muted" id="livroSelectedInfo"></div>
+          </div>
+          <span class="remove-btn" onclick="clearLivro()">✕</span>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <!-- Step 3: Date & Confirm -->
+      <div id="step3">
+        <h3 style="margin-bottom:14px;color:var(--primary-dark)">Passo 3: Definir Prazo e Confirmar</h3>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr">
+          <div class="form-group">
+            <label>Data do Empréstimo</label>
+            <input type="date" id="dataEmprestimo">
+          </div>
+          <div class="form-group">
+            <label>Data Prevista de Devolução *</label>
+            <input type="date" id="dataDevolucao">
+          </div>
+        </div>
+        <div class="form-group mt-2">
+          <label>Observações</label>
+          <input type="text" id="observacoes" placeholder="Observações opcionais...">
+        </div>
+      </div>
+
+      <div class="form-actions mt-3">
+        <button class="btn btn-primary" onclick="confirmarEmprestimo()">✅ Confirmar Empréstimo</button>
+        <button class="btn btn-secondary" onclick="resetForm()">🔄 Limpar Tudo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent loans table -->
+  <div class="section-header">
+    <h2>📋 Empréstimos Ativos</h2>
+    <span class="total-badge" id="activeCount">0</span>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Pessoa</th><th>Livro</th><th>Data Empréstimo</th><th>Prazo</th><th>Status</th></tr>
+      </thead>
+      <tbody id="activeLoansBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  let selectedPessoa = null, selectedLivro = null;
+
+  // Set default dates
+  document.getElementById('dataEmprestimo').value = today();
+  document.getElementById('dataDevolucao').value = addDaysToDate(today(), 14);
+
+  // Person search
+  document.getElementById('pessoaSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    const res = document.getElementById('pessoaResults');
+    if (!q) { res.style.display='none'; return; }
+    const matches = Pessoas.getAll().filter(p =>
+      p.nome.toLowerCase().includes(q) || p.ra.toLowerCase().includes(q)
+    ).slice(0,8);
+    if (!matches.length) { res.style.display='none'; return; }
+    res.style.display='block';
+    res.innerHTML = matches.map(p => `
+      <div class="search-result-item" onclick="selectPessoa('${p.id}')">
+        <strong>${p.nome}</strong> <span class="badge badge-${p.tipo==='Aluno'?'primary':'info'} badge-sm">${p.tipo}</span>
+        <br><span class="text-muted" style="font-size:.8rem">RA: ${p.ra} | ${p.turma||'-'}</span>
+      </div>`).join('');
+  });
+
+  function selectPessoa(id) {
+    const p = Pessoas.getById(id);
+    if (!p) return;
+    selectedPessoa = p;
+    document.getElementById('pessoaSearch').value = '';
+    document.getElementById('pessoaResults').style.display='none';
+    document.getElementById('pessoaSelectedNome').textContent = p.nome;
+    document.getElementById('pessoaSelectedInfo').textContent = `${p.tipo} | RA: ${p.ra} | Turma: ${p.turma||'-'}`;
+    document.getElementById('pessoaSelected').classList.add('show');
+    document.getElementById('step1ind').classList.remove('active');
+    document.getElementById('step1ind').classList.add('done');
+    document.getElementById('step2ind').classList.add('active');
+    updateActiveLoans();
+  }
+
+  function clearPessoa() {
+    selectedPessoa = null;
+    document.getElementById('pessoaSelected').classList.remove('show');
+    document.getElementById('step1ind').classList.add('active');
+    document.getElementById('step1ind').classList.remove('done');
+    document.getElementById('step2ind').classList.remove('active');
+  }
+
+  // Book search
+  document.getElementById('livroSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    const res = document.getElementById('livroResults');
+    if (!q) { res.style.display='none'; return; }
+    const matches = Books.getAll().filter(b =>
+      b.titulo.toLowerCase().includes(q) || b.autor.toLowerCase().includes(q)
+    ).slice(0,8);
+    if (!matches.length) { res.style.display='none'; return; }
+    res.style.display='block';
+    res.innerHTML = matches.map(b => `
+      <div class="search-result-item" onclick="selectLivro('${b.id}')" style="${b.quantidadeDisponivel<=0?'opacity:.5;':''}">
+        <strong>${b.titulo}</strong> ${b.quantidadeDisponivel<=0?'<span class="badge badge-danger badge-sm">Indisponível</span>':'<span class="badge badge-success badge-sm">Disponível</span>'}
+        <br><span class="text-muted" style="font-size:.8rem">Autor: ${b.autor} | Disponíveis: ${b.quantidadeDisponivel}/${b.quantidade}</span>
+      </div>`).join('');
+  });
+
+  function selectLivro(id) {
+    const b = Books.getById(id);
+    if (!b) return;
+    if (b.quantidadeDisponivel <= 0) { showToast('Este livro não possui exemplares disponíveis.', 'error'); return; }
+    selectedLivro = b;
+    document.getElementById('livroSearch').value = '';
+    document.getElementById('livroResults').style.display='none';
+    document.getElementById('livroSelectedTitulo').textContent = b.titulo;
+    document.getElementById('livroSelectedInfo').textContent = `${b.autor} | Disponíveis: ${b.quantidadeDisponivel}/${b.quantidade}`;
+    document.getElementById('livroSelected').classList.add('show');
+    document.getElementById('step2ind').classList.remove('active');
+    document.getElementById('step2ind').classList.add('done');
+    document.getElementById('step3ind').classList.add('active');
+  }
+
+  function clearLivro() {
+    selectedLivro = null;
+    document.getElementById('livroSelected').classList.remove('show');
+    document.getElementById('step2ind').classList.add('active');
+    document.getElementById('step2ind').classList.remove('done');
+    document.getElementById('step3ind').classList.remove('active');
+  }
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#pessoaSearch') && !e.target.closest('#pessoaResults'))
+      document.getElementById('pessoaResults').style.display='none';
+    if (!e.target.closest('#livroSearch') && !e.target.closest('#livroResults'))
+      document.getElementById('livroResults').style.display='none';
+  });
+
+  function confirmarEmprestimo() {
+    if (!selectedPessoa) { showToast('Selecione uma pessoa.', 'error'); return; }
+    if (!selectedLivro) { showToast('Selecione um livro.', 'error'); return; }
+    const dataEmp = document.getElementById('dataEmprestimo').value;
+    const dataDev = document.getElementById('dataDevolucao').value;
+    if (!dataEmp || !dataDev) { showToast('Preencha as datas.', 'error'); return; }
+    if (dataDev <= dataEmp) { showToast('A data de devolução deve ser posterior ao empréstimo.', 'error'); return; }
+
+    // Check if person already has this book
+    const jaEmprestado = Emprestimos.getAll().find(e =>
+      e.pessoaId === selectedPessoa.id && e.livroId === selectedLivro.id && e.status !== 'devolvido'
+    );
+    if (jaEmprestado) { showToast('Esta pessoa já possui este livro emprestado.', 'error'); return; }
+
+    const emp = {
+      id: DB.generateId(),
+      pessoaId: selectedPessoa.id,
+      livroId: selectedLivro.id,
+      dataEmprestimo: dataEmp,
+      dataPrevistaDevolucao: dataDev,
+      dataDevolvido: null,
+      status: 'ativo',
+      multa: 0
+    };
+    Emprestimos.save(emp);
+
+    // Update book availability
+    const book = Books.getById(selectedLivro.id);
+    book.quantidadeDisponivel = Math.max(0, book.quantidadeDisponivel - 1);
+    Books.save(book);
+
+    showToast(`Empréstimo registrado! Prazo: ${formatDate(dataDev)}`);
+    resetForm();
+    renderActiveLoans();
+  }
+
+  function resetForm() {
+    selectedPessoa = null; selectedLivro = null;
+    document.getElementById('pessoaSelected').classList.remove('show');
+    document.getElementById('livroSelected').classList.remove('show');
+    document.getElementById('pessoaSearch').value = '';
+    document.getElementById('livroSearch').value = '';
+    document.getElementById('dataEmprestimo').value = today();
+    document.getElementById('dataDevolucao').value = addDaysToDate(today(), 14);
+    ['step1ind','step2ind','step3ind'].forEach(id => {
+      document.getElementById(id).classList.remove('active','done');
+    });
+    document.getElementById('step1ind').classList.add('active');
+  }
+
+  function updateActiveLoans() {
+    // show loans of selected person
+    if (!selectedPessoa) return;
+    const loans = Emprestimos.getAll().filter(e => e.pessoaId === selectedPessoa.id && e.status !== 'devolvido');
+    if (loans.length > 0) {
+      const titles = loans.map(e => { const b = Books.getById(e.livroId); return b ? b.titulo : '?'; }).join(', ');
+      showToast(`Atenção: esta pessoa possui ${loans.length} empréstimo(s) ativo(s): ${titles}`, 'warning');
+    }
+  }
+
+  function renderActiveLoans() {
+    const loans = Emprestimos.getAll().filter(e => e.status !== 'devolvido')
+      .sort((a,b) => b.dataEmprestimo.localeCompare(a.dataEmprestimo));
+    document.getElementById('activeCount').textContent = `${loans.length} ativos`;
+    const tbody = document.getElementById('activeLoansBody');
+    if (!loans.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="table-empty">Nenhum empréstimo ativo</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = loans.map(e => {
+      const p = Pessoas.getById(e.pessoaId);
+      const b = Books.getById(e.livroId);
+      return `<tr>
+        <td>${p ? p.nome : '-'}</td>
+        <td>${b ? b.titulo : '-'}</td>
+        <td>${formatDate(e.dataEmprestimo)}</td>
+        <td>${formatDate(e.dataPrevistaDevolucao)}</td>
+        <td>${statusBadge(e.status)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  renderActiveLoans();
+</script>
+</body>
+</html>

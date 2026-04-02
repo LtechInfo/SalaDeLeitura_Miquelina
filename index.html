@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sala de Leitura – EE Miquelina Pedroso Magnani Professora</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .welcome-time { font-size: .85rem; opacity: .85; }
+    .quick-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .recent-section { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
+    @media(max-width:768px){ .recent-section { grid-template-columns:1fr; } }
+    .recent-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .recent-list li {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; background: var(--bg); border-radius: 10px;
+      font-size: .88rem; border-left: 3px solid var(--primary);
+    }
+    .recent-list li .ri { font-size: 1.1rem; }
+    .recent-list .loan-late { border-left-color: var(--danger); }
+    .total-badge {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      padding: 5px 14px;
+      border-radius: 16px;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="active btn-home">🏠 Início</a>
+      <a href="portal-aluno.html">👨‍🎓 Portal do Aluno</a>
+      <a href="consultar-livros.html">🔍 Consultar Livros</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <!-- Hero Banner -->
+  <div class="hero-banner">
+    <div>
+      <h2 id="welcomeMsg">Bem-vindo à Sala de Leitura!</h2>
+      <p>EE Miquelina Pedroso Magnani Professora — Gestão integrada de acervo, empréstimos e agendamentos.</p>
+      <p class="welcome-time" id="currentDateTime"></p>
+    </div>
+    <div class="quick-actions" style="position:relative;z-index:1;">
+      <a href="registrar-emprestimo.html" class="btn btn-primary">📖 Novo Empréstimo</a>
+      <a href="agendar-sala.html" class="btn btn-secondary" style="background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.3);">📅 Agendar Sala</a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card">
+      <div class="stat-icon">📚</div>
+      <div class="stat-info">
+        <h3 id="totalLivros">0</h3>
+        <p>Total de Livros no Acervo</p>
+      </div>
+    </div>
+    <div class="stat-card success">
+      <div class="stat-icon">✅</div>
+      <div class="stat-info">
+        <h3 id="totalDisponiveis">0</h3>
+        <p>Livros Disponíveis</p>
+      </div>
+    </div>
+    <div class="stat-card warning">
+      <div class="stat-icon">📤</div>
+      <div class="stat-info">
+        <h3 id="totalEmprestados">0</h3>
+        <p>Empréstimos Ativos</p>
+      </div>
+    </div>
+    <div class="stat-card danger">
+      <div class="stat-icon">⚠️</div>
+      <div class="stat-info">
+        <h3 id="totalAtrasados">0</h3>
+        <p>Empréstimos Atrasados</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-info">
+        <h3 id="totalPessoas">0</h3>
+        <p>Pessoas Cadastradas</p>
+      </div>
+    </div>
+    <div class="stat-card success">
+      <div class="stat-icon">📅</div>
+      <div class="stat-info">
+        <h3 id="totalAgendamentos">0</h3>
+        <p>Agendamentos Futuros</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modules Grid -->
+  <div class="section-header">
+    <h2>📋 Módulos do Sistema</h2>
+    <span class="total-badge" id="acervoBadge">Acervo: — títulos</span>
+  </div>
+
+  <div class="modules-grid">
+    <a href="cadastrar-livros.html" class="module-card">
+      <div class="icon">📝</div>
+      <h3>Cadastrar Livros</h3>
+      <p>Adicione novos títulos ao acervo da biblioteca</p>
+    </a>
+    <a href="consultar-livros.html" class="module-card">
+      <div class="icon">🔍</div>
+      <h3>Consultar Livros</h3>
+      <p>Pesquise livros por título, autor, gênero ou ano</p>
+    </a>
+    <a href="lista-geral.html" class="module-card">
+      <div class="icon">📋</div>
+      <h3>Lista Geral</h3>
+      <p>Visualize e exporte o acervo completo</p>
+    </a>
+    <a href="portal-aluno.html" class="module-card">
+      <div class="icon">👨‍🎓</div>
+      <h3>Portal do Aluno</h3>
+      <p>Acesso do aluno ao acervo e histórico de empréstimos</p>
+    </a>
+    <a href="cadastrar-pessoas.html" class="module-card">
+      <div class="icon">👤</div>
+      <h3>Cadastrar Pessoas</h3>
+      <p>Registre alunos e professores no sistema</p>
+    </a>
+    <a href="registrar-emprestimo.html" class="module-card">
+      <div class="icon">📤</div>
+      <h3>Registrar Empréstimo</h3>
+      <p>Realize a saída de livros para alunos e professores</p>
+    </a>
+    <a href="registrar-devolucao.html" class="module-card">
+      <div class="icon">📥</div>
+      <h3>Registrar Devolução</h3>
+      <p>Confirme a devolução de livros emprestados</p>
+    </a>
+    <a href="agendar-sala.html" class="module-card">
+      <div class="icon">📅</div>
+      <h3>Agendar Sala</h3>
+      <p>Reserve a sala de leitura para turmas e professores</p>
+    </a>
+    <a href="verificar-agendamentos.html" class="module-card">
+      <div class="icon">🗓️</div>
+      <h3>Verificar Agendamentos</h3>
+      <p>Veja todos os agendamentos em calendário ou lista</p>
+    </a>
+    <a href="relatorio-emprestimos.html" class="module-card">
+      <div class="icon">📊</div>
+      <h3>Relatório de Empréstimos</h3>
+      <p>Estatísticas e gráficos de empréstimos</p>
+    </a>
+    <a href="relatorio-agendamentos.html" class="module-card">
+      <div class="icon">📈</div>
+      <h3>Relatório de Agendamentos</h3>
+      <p>Análise completa dos agendamentos da sala</p>
+    </a>
+    <a href="lista-geral.html" class="module-card" style="cursor:default;">
+      <div class="icon">🔢</div>
+      <h3>Total de Livros</h3>
+      <p id="totalLivrosCard" style="font-size:1.4rem;font-weight:800;color:var(--primary-dark);">—</p>
+    </a>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="recent-section">
+    <div class="card">
+      <div class="card-header">📤 Empréstimos Recentes</div>
+      <div class="card-body">
+        <ul class="recent-list" id="recentLoans">
+          <li class="table-empty">Carregando...</li>
+        </ul>
+        <div class="mt-2"><a href="relatorio-emprestimos.html" class="btn btn-secondary btn-sm">Ver Relatório Completo</a></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">📅 Próximos Agendamentos</div>
+      <div class="card-body">
+        <ul class="recent-list" id="recentSchedules">
+          <li class="table-empty">Carregando...</li>
+        </ul>
+        <div class="mt-2"><a href="verificar-agendamentos.html" class="btn btn-secondary btn-sm">Ver Todos</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Date/time display
+  function updateTime() {
+    const now = new Date();
+    const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('currentDateTime').textContent =
+      now.toLocaleDateString('pt-BR', opts) + ' — ' +
+      now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  updateTime();
+  setInterval(updateTime, 60000);
+
+  // Stats
+  const books = Books.getAll();
+  const emps = Emprestimos.getAll();
+  const pessoas = Pessoas.getAll();
+  const ags = Agendamentos.getAll();
+  const hoje = today();
+
+  const totalQ = books.reduce((s,b) => s + (parseInt(b.quantidade)||0), 0);
+  const totalDisp = books.reduce((s,b) => s + (parseInt(b.quantidadeDisponivel)||0), 0);
+  const ativos = emps.filter(e => e.status === 'ativo').length;
+  const atrasados = emps.filter(e => e.status === 'atrasado').length;
+  const futuros = ags.filter(a => a.data >= hoje && a.status !== 'cancelado').length;
+
+  document.getElementById('totalLivros').textContent = totalQ;
+  document.getElementById('totalDisponiveis').textContent = totalDisp;
+  document.getElementById('totalEmprestados').textContent = ativos;
+  document.getElementById('totalAtrasados').textContent = atrasados;
+  document.getElementById('totalPessoas').textContent = pessoas.length;
+  document.getElementById('totalAgendamentos').textContent = futuros;
+  document.getElementById('acervoBadge').textContent = `Acervo: ${books.length} títulos`;
+  document.getElementById('totalLivrosCard').textContent = totalQ;
+
+  // Recent loans
+  const recentLoansEl = document.getElementById('recentLoans');
+  const recentEmps = [...emps].filter(e=>e.status!=='devolvido')
+    .sort((a,b)=>b.dataEmprestimo.localeCompare(a.dataEmprestimo)).slice(0,5);
+  if (recentEmps.length === 0) {
+    recentLoansEl.innerHTML = '<li class="table-empty">Nenhum empréstimo ativo</li>';
+  } else {
+    recentLoansEl.innerHTML = recentEmps.map(e => {
+      const p = Pessoas.getById(e.pessoaId);
+      const b = Books.getById(e.livroId);
+      const late = e.status === 'atrasado';
+      return `<li class="${late?'loan-late':''}">
+        <span>${late?'⚠️':'📖'}</span>
+        <div style="flex:1">
+          <div class="fw-bold" style="font-size:.85rem">${b?b.titulo:'?'}</div>
+          <div class="text-muted" style="font-size:.78rem">${p?p.nome:'?'} — ${formatDate(e.dataPrevistaDevolucao)}</div>
+        </div>
+        ${statusBadge(e.status)}
+      </li>`;
+    }).join('');
+  }
+
+  // Recent schedules
+  const recentSchEl = document.getElementById('recentSchedules');
+  const futurosAgs = ags.filter(a=>a.data>=hoje && a.status!=='cancelado')
+    .sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5);
+  if (futurosAgs.length === 0) {
+    recentSchEl.innerHTML = '<li class="table-empty">Nenhum agendamento futuro</li>';
+  } else {
+    recentSchEl.innerHTML = futurosAgs.map(a => `
+      <li>
+        <span>📅</span>
+        <div style="flex:1">
+          <div class="fw-bold" style="font-size:.85rem">${a.turma} — ${a.horarioInicio}</div>
+          <div class="text-muted" style="font-size:.78rem">${a.responsavel} — ${formatDate(a.data)}</div>
+        </div>
+        ${statusBadge(a.status)}
+      </li>`).join('');
+  }
+});
+</script>
+</body>
+</html>

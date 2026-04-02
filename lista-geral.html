@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista Geral – Sala de Leitura</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    thead th { cursor: pointer; user-select: none; }
+    thead th.sort-asc::after { content: ' ▲'; font-size:.7rem; }
+    thead th.sort-desc::after { content: ' ▼'; font-size:.7rem; }
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="btn-home">🏠 Início</a>
+      <a href="cadastrar-livros.html">📝 Cadastrar</a>
+      <a href="consultar-livros.html">🔍 Consultar</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <div class="page-title"><span>📋</span> Lista Geral do Acervo</div>
+  <div class="page-subtitle">Visão completa de todos os livros com opções de ordenação e exportação</div>
+
+  <!-- Stats Row -->
+  <div class="stats-bar mb-3" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat-card"><div class="stat-icon">📚</div><div class="stat-info"><h3 id="sTitulos">0</h3><p>Títulos</p></div></div>
+    <div class="stat-card"><div class="stat-icon">🔢</div><div class="stat-info"><h3 id="sExemplares">0</h3><p>Exemplares</p></div></div>
+    <div class="stat-card success"><div class="stat-icon">✅</div><div class="stat-info"><h3 id="sDisp">0</h3><p>Disponíveis</p></div></div>
+    <div class="stat-card warning"><div class="stat-icon">📤</div><div class="stat-info"><h3 id="sEmp">0</h3><p>Emprestados</p></div></div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-input-wrap" style="flex:2;min-width:200px;">
+      <label style="display:block;font-size:.78rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Buscar</label>
+      <input type="text" id="searchInput" placeholder="Título, autor, editora...">
+    </div>
+    <div class="form-group" style="flex:1;min-width:130px;">
+      <label>Gênero</label>
+      <select id="generoFilter"><option value="">Todos</option></select>
+    </div>
+    <div class="form-group" style="flex:1;min-width:130px;">
+      <label>Disponibilidade</label>
+      <select id="dispFilter">
+        <option value="">Todos</option>
+        <option value="disponivel">Disponível</option>
+        <option value="indisponivel">Indisponível</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="applyFilters()">🔍 Filtrar</button>
+      <button class="btn btn-secondary" onclick="clearFilters()">🔄 Limpar</button>
+      <button class="btn btn-success" onclick="exportCSV()">⬇️ CSV</button>
+      <button class="btn btn-secondary" onclick="window.print()">🖨️ Imprimir</button>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <span class="total-badge" id="countBadge">0 livros</span>
+    <select id="perPageSel" onchange="perPage=parseInt(this.value);currentPage=1;renderTable()" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:.85rem;">
+      <option value="20">20 por página</option>
+      <option value="50">50 por página</option>
+      <option value="100">100 por página</option>
+    </select>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('titulo')">Título</th>
+          <th onclick="sortBy('autor')">Autor</th>
+          <th onclick="sortBy('genero')">Gênero</th>
+          <th onclick="sortBy('editora')">Editora</th>
+          <th onclick="sortBy('ano')">Ano</th>
+          <th onclick="sortBy('quantidade')">Exemplares</th>
+          <th onclick="sortBy('quantidadeDisponivel')">Disponível</th>
+          <th>ISBN</th>
+          <th onclick="sortBy('dataCadastro')">Cadastrado em</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  let allBooks = [], filtered = [], sortCol = 'titulo', sortDir = 1, currentPage = 1, perPage = 20;
+
+  const generoSel = document.getElementById('generoFilter');
+  [...new Set(Books.getAll().map(b=>b.genero).filter(Boolean))].sort().forEach(g => {
+    const o = document.createElement('option'); o.value = g; o.textContent = g; generoSel.appendChild(o);
+  });
+
+  function loadStats() {
+    const books = Books.getAll();
+    const emps = Emprestimos.getAll().filter(e=>e.status!=='devolvido').length;
+    document.getElementById('sTitulos').textContent = books.length;
+    document.getElementById('sExemplares').textContent = books.reduce((s,b)=>s+(parseInt(b.quantidade)||0),0);
+    document.getElementById('sDisp').textContent = books.reduce((s,b)=>s+(parseInt(b.quantidadeDisponivel)||0),0);
+    document.getElementById('sEmp').textContent = emps;
+  }
+
+  function applyFilters() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const genero = document.getElementById('generoFilter').value;
+    const disp = document.getElementById('dispFilter').value;
+    filtered = Books.getAll().filter(b => {
+      if (q && !b.titulo.toLowerCase().includes(q) && !b.autor.toLowerCase().includes(q) && !(b.editora||'').toLowerCase().includes(q)) return false;
+      if (genero && b.genero !== genero) return false;
+      if (disp === 'disponivel' && b.quantidadeDisponivel <= 0) return false;
+      if (disp === 'indisponivel' && b.quantidadeDisponivel > 0) return false;
+      return true;
+    });
+    currentPage = 1;
+    renderTable();
+  }
+
+  function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('generoFilter').value = '';
+    document.getElementById('dispFilter').value = '';
+    applyFilters();
+  }
+
+  function sortBy(col) {
+    if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+    // Update header classes
+    document.querySelectorAll('thead th').forEach(th => th.className = '');
+    const headers = ['titulo','autor','genero','editora','ano','quantidade','quantidadeDisponivel','','dataCadastro',''];
+    const idx = headers.indexOf(col);
+    if (idx >= 0) document.querySelectorAll('thead th')[idx].className = sortDir === 1 ? 'sort-asc' : 'sort-desc';
+    renderTable();
+  }
+
+  function renderTable() {
+    const sorted = [...filtered].sort((a,b) => {
+      let va = a[sortCol]||'', vb = b[sortCol]||'';
+      if (!isNaN(va) && !isNaN(vb)) { va = +va; vb = +vb; }
+      return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    });
+    document.getElementById('countBadge').textContent = `${filtered.length} livro(s)`;
+    const start = (currentPage-1)*perPage;
+    const page = sorted.slice(start, start+perPage);
+    const tbody = document.getElementById('tableBody');
+    if (!page.length) {
+      tbody.innerHTML = `<tr><td colspan="10" class="table-empty">Nenhum livro encontrado</td></tr>`;
+    } else {
+      tbody.innerHTML = page.map((b,i) => `<tr>
+        <td><strong>${b.titulo}</strong></td>
+        <td>${b.autor}</td>
+        <td>${b.genero?`<span class="badge badge-primary">${b.genero}</span>`:'-'}</td>
+        <td>${b.editora||'-'}</td>
+        <td>${b.ano||'-'}</td>
+        <td>${b.quantidade}</td>
+        <td><span class="badge ${b.quantidadeDisponivel>0?'badge-success':'badge-danger'}">${b.quantidadeDisponivel}</span></td>
+        <td><span style="font-size:.78rem">${b.isbn||'-'}</span></td>
+        <td>${formatDate(b.dataCadastro)}</td>
+        <td><a href="cadastrar-livros.html" class="btn btn-secondary btn-xs">✏️ Editar</a></td>
+      </tr>`).join('');
+    }
+    renderPag(filtered.length);
+  }
+
+  function renderPag(total) {
+    const pages = Math.ceil(total/perPage);
+    if (pages <= 1) { document.getElementById('pagination').innerHTML=''; return; }
+    let html = '';
+    if (currentPage>1) html+=`<button onclick="goPage(${currentPage-1})">‹</button>`;
+    for (let i=1;i<=pages;i++) {
+      if (i===1||i===pages||Math.abs(i-currentPage)<=1)
+        html+=`<button class="${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+      else if (Math.abs(i-currentPage)===2) html+='<button disabled>…</button>';
+    }
+    if (currentPage<pages) html+=`<button onclick="goPage(${currentPage+1})">›</button>`;
+    document.getElementById('pagination').innerHTML = html;
+  }
+
+  function goPage(p) { currentPage=p; renderTable(); window.scrollTo({top:300,behavior:'smooth'}); }
+
+  function exportCSV() {
+    const rows = [['Título','Autor','Gênero','Editora','Ano','Exemplares','Disponível','ISBN','Cadastrado em']];
+    filtered.forEach(b => rows.push([b.titulo,b.autor,b.genero||'',b.editora||'',b.ano||'',b.quantidade,b.quantidadeDisponivel,b.isbn||'',b.dataCadastro]));
+    const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `acervo_sala_leitura_${today()}.csv`;
+    a.click();
+    showToast('Arquivo CSV exportado com sucesso!');
+  }
+
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  document.getElementById('generoFilter').addEventListener('change', applyFilters);
+  document.getElementById('dispFilter').addEventListener('change', applyFilters);
+
+  loadStats();
+  applyFilters();
+</script>
+</body>
+</html>

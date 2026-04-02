@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastrar Livros – Sala de Leitura</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="btn-home">🏠 Início</a>
+      <a href="consultar-livros.html">🔍 Consultar</a>
+      <a href="lista-geral.html">📋 Lista Geral</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <div class="page-title"><span>📝</span> Cadastrar Livros</div>
+  <div class="page-subtitle">Adicione novos títulos ao acervo da biblioteca</div>
+
+  <div class="card mb-3">
+    <div class="card-header" id="formCardHeader">📝 Novo Livro</div>
+    <div class="card-body">
+      <form id="bookForm">
+        <input type="hidden" id="bookId">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label for="titulo">Título do Livro *</label>
+            <input type="text" id="titulo" placeholder="Ex: Dom Casmurro" required>
+          </div>
+          <div class="form-group">
+            <label for="autor">Autor *</label>
+            <input type="text" id="autor" placeholder="Ex: Machado de Assis" required>
+          </div>
+          <div class="form-group">
+            <label for="editora">Editora</label>
+            <input type="text" id="editora" placeholder="Ex: Editora Ática">
+          </div>
+          <div class="form-group">
+            <label for="ano">Ano de Publicação</label>
+            <input type="number" id="ano" placeholder="Ex: 2020" min="1000" max="2099">
+          </div>
+          <div class="form-group">
+            <label for="genero">Gênero</label>
+            <select id="genero">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="isbn">ISBN</label>
+            <input type="text" id="isbn" placeholder="Ex: 978-8535910520">
+          </div>
+          <div class="form-group">
+            <label for="quantidade">Quantidade de Exemplares *</label>
+            <input type="number" id="quantidade" placeholder="Ex: 3" min="1" value="1" required>
+          </div>
+          <div class="form-group full">
+            <label for="descricao">Descrição / Sinopse</label>
+            <textarea id="descricao" placeholder="Breve descrição do livro..."></textarea>
+          </div>
+        </div>
+        <div class="form-actions mt-2">
+          <button type="submit" class="btn btn-primary" id="submitBtn">💾 Salvar Livro</button>
+          <button type="button" class="btn btn-secondary" id="cancelBtn" style="display:none">❌ Cancelar Edição</button>
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('bookForm').reset(); document.getElementById('bookId').value='';">🔄 Limpar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- List -->
+  <div class="section-header">
+    <h2>📚 Livros Cadastrados</h2>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <span class="total-badge" id="countBadge">0 livros</span>
+      <input type="text" id="searchBooks" placeholder="🔍 Buscar livro..." style="width:200px;padding:8px 12px;border-radius:20px;border:1.5px solid var(--border);font-size:.87rem;">
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="booksTable">
+      <thead>
+        <tr>
+          <th>Título</th>
+          <th>Autor</th>
+          <th>Gênero</th>
+          <th>Ano</th>
+          <th>Qtd.</th>
+          <th>Disponível</th>
+          <th>Cadastrado em</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="booksBody">
+        <tr><td colspan="8" class="table-empty">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  const generoSel = document.getElementById('genero');
+  getGeneros().forEach(g => {
+    const o = document.createElement('option');
+    o.value = g; o.textContent = g;
+    generoSel.appendChild(o);
+  });
+
+  let editingId = null;
+
+  function renderTable(filter = '') {
+    const books = Books.getAll().filter(b =>
+      !filter || b.titulo.toLowerCase().includes(filter) ||
+      b.autor.toLowerCase().includes(filter) ||
+      (b.genero||'').toLowerCase().includes(filter)
+    );
+    document.getElementById('countBadge').textContent = `${books.length} livro(s)`;
+    const tbody = document.getElementById('booksBody');
+    if (!books.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="table-empty">Nenhum livro encontrado</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = books.map(b => `
+      <tr>
+        <td><strong>${b.titulo}</strong>${b.isbn?`<br><span class="text-muted" style="font-size:.75rem">ISBN: ${b.isbn}</span>`:''}</td>
+        <td>${b.autor}</td>
+        <td>${b.genero ? `<span class="badge badge-primary">${b.genero}</span>` : '-'}</td>
+        <td>${b.ano || '-'}</td>
+        <td>${b.quantidade}</td>
+        <td><span class="badge ${b.quantidadeDisponivel>0?'badge-success':'badge-danger'}">${b.quantidadeDisponivel}</span></td>
+        <td>${formatDate(b.dataCadastro)}</td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="editBook('${b.id}')">✏️ Editar</button>
+          <button class="btn btn-danger btn-sm mt-1" onclick="deleteBook('${b.id}')">🗑️ Excluir</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('searchBooks').addEventListener('input', e => renderTable(e.target.value.toLowerCase()));
+
+  document.getElementById('bookForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const titulo = document.getElementById('titulo').value.trim();
+    const autor = document.getElementById('autor').value.trim();
+    const qtd = parseInt(document.getElementById('quantidade').value) || 1;
+
+    if (!titulo || !autor) { showToast('Preencha os campos obrigatórios.', 'error'); return; }
+
+    const id = editingId || DB.generateId();
+    const existing = Books.getById(id);
+    const book = {
+      id,
+      titulo,
+      autor,
+      ano: document.getElementById('ano').value,
+      genero: document.getElementById('genero').value,
+      quantidade: qtd,
+      quantidadeDisponivel: editingId ? existing.quantidadeDisponivel + (qtd - existing.quantidade) : qtd,
+      isbn: document.getElementById('isbn').value.trim(),
+      editora: document.getElementById('editora').value.trim(),
+      descricao: document.getElementById('descricao').value.trim(),
+      dataCadastro: existing ? existing.dataCadastro : today()
+    };
+    if (book.quantidadeDisponivel < 0) book.quantidadeDisponivel = 0;
+
+    Books.save(book);
+    showToast(editingId ? 'Livro atualizado com sucesso!' : 'Livro cadastrado com sucesso!');
+    cancelEdit();
+    renderTable();
+  });
+
+  function editBook(id) {
+    const b = Books.getById(id);
+    if (!b) return;
+    editingId = id;
+    document.getElementById('bookId').value = id;
+    document.getElementById('titulo').value = b.titulo;
+    document.getElementById('autor').value = b.autor;
+    document.getElementById('ano').value = b.ano;
+    document.getElementById('genero').value = b.genero;
+    document.getElementById('isbn').value = b.isbn;
+    document.getElementById('editora').value = b.editora;
+    document.getElementById('quantidade').value = b.quantidade;
+    document.getElementById('descricao').value = b.descricao;
+    document.getElementById('submitBtn').textContent = '💾 Atualizar Livro';
+    document.getElementById('cancelBtn').style.display = '';
+    document.getElementById('formCardHeader').textContent = '✏️ Editando: ' + b.titulo;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    document.getElementById('bookForm').reset();
+    document.getElementById('bookId').value = '';
+    document.getElementById('submitBtn').textContent = '💾 Salvar Livro';
+    document.getElementById('cancelBtn').style.display = 'none';
+    document.getElementById('formCardHeader').textContent = '📝 Novo Livro';
+  }
+  document.getElementById('cancelBtn').addEventListener('click', cancelEdit);
+
+  function deleteBook(id) {
+    const b = Books.getById(id);
+    if (!b) return;
+    const activeLoans = Emprestimos.getAll().filter(e => e.livroId === id && e.status !== 'devolvido');
+    if (activeLoans.length > 0) {
+      showToast('Não é possível excluir: livro possui empréstimos ativos.', 'error');
+      return;
+    }
+    if (confirm(`Excluir o livro "${b.titulo}"?\n\nEsta ação não pode ser desfeita.`)) {
+      Books.delete(id);
+      showToast('Livro excluído com sucesso.', 'warning');
+      renderTable();
+    }
+  }
+
+  renderTable();
+</script>
+</body>
+</html>

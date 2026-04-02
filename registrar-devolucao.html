@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar Devolução – Sala de Leitura</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .loan-row { transition: all .2s; }
+    .multa-info { background: #fff3e0; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 14px; font-size: .88rem; color: #e65100; margin-top: 8px; }
+    .dias-atraso { color: var(--danger); font-weight: 700; }
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="btn-home">🏠 Início</a>
+      <a href="registrar-emprestimo.html">📤 Empréstimo</a>
+      <a href="relatorio-emprestimos.html">📊 Relatório</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <div class="page-title"><span>📥</span> Registrar Devolução</div>
+  <div class="page-subtitle">Confirme a devolução de livros emprestados e verifique multas por atraso</div>
+
+  <!-- Stats -->
+  <div class="stats-bar mb-3" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat-card warning"><div class="stat-icon">📤</div><div class="stat-info"><h3 id="sAtivos">0</h3><p>Empréstimos Ativos</p></div></div>
+    <div class="stat-card danger"><div class="stat-icon">⚠️</div><div class="stat-info"><h3 id="sAtrasados">0</h3><p>Em Atraso</p></div></div>
+    <div class="stat-card success"><div class="stat-icon">✅</div><div class="stat-info"><h3 id="sDevolvidos">0</h3><p>Devolvidos Hoje</p></div></div>
+  </div>
+
+  <!-- Filter -->
+  <div class="filter-bar">
+    <div class="search-input-wrap" style="flex:2;min-width:200px">
+      <label style="display:block;font-size:.78rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Buscar</label>
+      <input type="text" id="searchInput" placeholder="Nome da pessoa ou título do livro...">
+    </div>
+    <div class="form-group" style="min-width:130px">
+      <label>Status</label>
+      <select id="statusFilter">
+        <option value="pendente">Ativos + Atrasados</option>
+        <option value="ativo">Somente Ativos</option>
+        <option value="atrasado">Somente Atrasados</option>
+        <option value="">Todos (incl. devolvidos)</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:flex-end">
+      <button class="btn btn-secondary" onclick="renderLoans()">🔄 Atualizar</button>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <h2>📋 Empréstimos</h2>
+    <span class="total-badge" id="countBadge">0</span>
+  </div>
+
+  <div id="loansContainer"></div>
+</div>
+
+<!-- Confirm Modal -->
+<div id="confirmModal" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span>📥 Confirmar Devolução</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="confirmBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-success" id="confirmBtn">✅ Confirmar Devolução</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  let devolvingId = null;
+
+  function renderLoans() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const statusF = document.getElementById('statusFilter').value;
+
+    let loans = Emprestimos.getAll();
+    if (statusF === 'pendente') loans = loans.filter(e => e.status !== 'devolvido');
+    else if (statusF) loans = loans.filter(e => e.status === statusF);
+
+    if (q) {
+      loans = loans.filter(e => {
+        const p = Pessoas.getById(e.pessoaId);
+        const b = Books.getById(e.livroId);
+        return (p && p.nome.toLowerCase().includes(q)) || (b && b.titulo.toLowerCase().includes(q));
+      });
+    }
+
+    loans = loans.sort((a,b) => {
+      const order = { atrasado: 0, ativo: 1, devolvido: 2 };
+      if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
+      return a.dataPrevistaDevolucao.localeCompare(b.dataPrevistaDevolucao);
+    });
+
+    document.getElementById('countBadge').textContent = `${loans.length} registro(s)`;
+
+    // Stats
+    const all = Emprestimos.getAll();
+    const ativos = all.filter(e=>e.status==='ativo').length;
+    const atrasados = all.filter(e=>e.status==='atrasado').length;
+    const devolvidosHoje = all.filter(e=>e.dataDevolvido===today()).length;
+    document.getElementById('sAtivos').textContent = ativos;
+    document.getElementById('sAtrasados').textContent = atrasados;
+    document.getElementById('sDevolvidos').textContent = devolvidosHoje;
+
+    const container = document.getElementById('loansContainer');
+    if (!loans.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📥</div><h3>Nenhum empréstimo encontrado</h3><p>Ajuste os filtros ou registre um novo empréstimo.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = loans.map(e => {
+      const p = Pessoas.getById(e.pessoaId);
+      const b = Books.getById(e.livroId);
+      const multa = e.status !== 'devolvido' ? parseFloat(Emprestimos.calcMulta(e.dataPrevistaDevolucao)) : e.multa;
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      const venc = new Date(e.dataPrevistaDevolucao + 'T00:00:00');
+      const diasAtraso = e.status !== 'devolvido' && hoje > venc ? Math.floor((hoje-venc)/86400000) : 0;
+
+      return `<div class="loan-card ${e.status} mb-2 loan-row">
+        <div style="font-size:2rem">${e.status==='atrasado'?'⚠️':e.status==='devolvido'?'✅':'📖'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="fw-bold">${b ? b.titulo : 'Livro não encontrado'}</div>
+          <div class="text-muted" style="font-size:.85rem">👤 ${p ? p.nome : '-'} | ${p ? p.turma||'-' : ''}</div>
+          <div style="font-size:.82rem;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap">
+            <span>📅 Empréstimo: <strong>${formatDate(e.dataEmprestimo)}</strong></span>
+            <span>⏰ Prazo: <strong>${formatDate(e.dataPrevistaDevolucao)}</strong></span>
+            ${e.dataDevolvido ? `<span>✅ Devolvido: <strong>${formatDate(e.dataDevolvido)}</strong></span>` : ''}
+            ${diasAtraso > 0 ? `<span class="dias-atraso">🚨 ${diasAtraso} dia(s) de atraso</span>` : ''}
+          </div>
+          ${multa > 0 ? `<div class="multa-info">💰 Multa por atraso: <strong>R$ ${parseFloat(multa).toFixed(2)}</strong> (R$ 0,50/dia)</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          ${statusBadge(e.status)}
+          ${e.status !== 'devolvido' ? `<button class="btn btn-success btn-sm" onclick="openConfirm('${e.id}')">📥 Devolver</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openConfirm(id) {
+    const e = Emprestimos.getById(id);
+    if (!e) return;
+    devolvingId = id;
+    const p = Pessoas.getById(e.pessoaId);
+    const b = Books.getById(e.livroId);
+    const multa = parseFloat(Emprestimos.calcMulta(e.dataPrevistaDevolucao));
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const venc = new Date(e.dataPrevistaDevolucao + 'T00:00:00');
+    const diasAtraso = hoje > venc ? Math.floor((hoje-venc)/86400000) : 0;
+
+    document.getElementById('confirmBody').innerHTML = `
+      <div style="text-align:center;margin-bottom:16px;font-size:3rem">${multa>0?'⚠️':'✅'}</div>
+      <table style="width:100%;font-size:.9rem;border-collapse:collapse">
+        <tr><td style="padding:6px 0;color:var(--text-light)">Livro:</td><td style="padding:6px 0"><strong>${b?b.titulo:'?'}</strong></td></tr>
+        <tr><td style="padding:6px 0;color:var(--text-light)">Pessoa:</td><td style="padding:6px 0">${p?p.nome:'?'}</td></tr>
+        <tr><td style="padding:6px 0;color:var(--text-light)">Data Empréstimo:</td><td style="padding:6px 0">${formatDate(e.dataEmprestimo)}</td></tr>
+        <tr><td style="padding:6px 0;color:var(--text-light)">Prazo:</td><td style="padding:6px 0">${formatDate(e.dataPrevistaDevolucao)}</td></tr>
+        ${diasAtraso>0?`<tr><td style="padding:6px 0;color:var(--danger)">Dias em Atraso:</td><td style="padding:6px 0;color:var(--danger);font-weight:700">${diasAtraso} dia(s)</td></tr>`:''}
+        ${multa>0?`<tr><td style="padding:6px 0;color:var(--warning)">Multa:</td><td style="padding:6px 0;color:var(--warning);font-weight:700">R$ ${multa.toFixed(2)}</td></tr>`:''}
+      </table>
+      ${multa>0?`<div class="multa-info mt-2">⚠️ Devolução com atraso. Multa de R$ 0,50 por dia de atraso.</div>`:'<div style="background:#e8f5e9;border-radius:8px;padding:10px;text-align:center;color:#2e7d32;font-weight:600;margin-top:12px">✅ Devolução no prazo!</div>'}`;
+    document.getElementById('confirmModal').style.display = 'flex';
+  }
+
+  document.getElementById('confirmBtn').addEventListener('click', () => {
+    if (!devolvingId) return;
+    const e = Emprestimos.getById(devolvingId);
+    if (!e) return;
+    const multa = parseFloat(Emprestimos.calcMulta(e.dataPrevistaDevolucao));
+    e.status = 'devolvido';
+    e.dataDevolvido = today();
+    e.multa = multa;
+    Emprestimos.save(e);
+
+    // Return book
+    const b = Books.getById(e.livroId);
+    if (b) { b.quantidadeDisponivel = Math.min(b.quantidade, b.quantidadeDisponivel + 1); Books.save(b); }
+
+    showToast('Devolução registrada com sucesso!' + (multa>0 ? ` Multa: R$ ${multa.toFixed(2)}` : ''));
+    closeModal();
+    renderLoans();
+  });
+
+  function closeModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+    devolvingId = null;
+  }
+  document.getElementById('confirmModal').addEventListener('click', e => { if (e.target===e.currentTarget) closeModal(); });
+
+  document.getElementById('searchInput').addEventListener('input', renderLoans);
+  document.getElementById('statusFilter').addEventListener('change', renderLoans);
+
+  renderLoans();
+</script>
+</body>
+</html>

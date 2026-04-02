@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agendar Sala – Sala de Leitura</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .time-slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px,1fr)); gap: 8px; margin-top: 8px; }
+    .time-slot { padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; text-align: center; font-size: .83rem; font-weight: 600; transition: var(--transition); background: #fff; }
+    .time-slot:hover { border-color: var(--primary); background: var(--primary-xlight); color: var(--primary-dark); }
+    .time-slot.selected { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .time-slot.occupied { background: #ffebee; border-color: #ef9a9a; color: #c62828; cursor: not-allowed; opacity: .7; }
+    .conflict-alert { background: #fff3e0; border: 1.5px solid #ffe082; border-radius: 10px; padding: 12px 16px; color: #e65100; font-size: .88rem; margin-top: 10px; display: none; }
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="btn-home">🏠 Início</a>
+      <a href="verificar-agendamentos.html">🗓️ Ver Agendamentos</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <div class="page-title"><span>📅</span> Agendar Sala de Leitura</div>
+  <div class="page-subtitle">Reserve a sala para aulas, pesquisas ou atividades de leitura</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+    <!-- Form -->
+    <div class="card">
+      <div class="card-header" id="formHeader">📅 Novo Agendamento</div>
+      <div class="card-body">
+        <form id="agForm">
+          <input type="hidden" id="agId">
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="form-group">
+              <label>Responsável *</label>
+              <input type="text" id="responsavel" list="pessoasList" placeholder="Nome do professor ou responsável" required>
+              <datalist id="pessoasList"></datalist>
+            </div>
+            <div class="form-group">
+              <label>Turma *</label>
+              <input type="text" id="turma" placeholder="Ex: 9º A ou Grupo de Pesquisa" required>
+            </div>
+            <div class="form-group">
+              <label>Data *</label>
+              <input type="date" id="data" required>
+            </div>
+            <div class="form-group">
+              <label>Horário de Início *</label>
+              <select id="horarioInicio" required>
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Horário de Término *</label>
+              <select id="horarioFim" required>
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Propósito / Atividade *</label>
+              <input type="text" id="proposito" placeholder="Ex: Pesquisa bibliográfica, Leitura livre..." required>
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select id="status">
+                <option value="confirmado">Confirmado</option>
+                <option value="pendente">Pendente</option>
+              </select>
+            </div>
+          </div>
+          <div id="conflictAlert" class="conflict-alert">
+            ⚠️ Atenção: Já existe um agendamento neste horário!
+          </div>
+          <div class="form-actions mt-2">
+            <button type="submit" class="btn btn-primary" id="submitBtn">💾 Agendar</button>
+            <button type="button" class="btn btn-secondary" id="cancelBtn" style="display:none">❌ Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Quick View -->
+    <div>
+      <div class="card mb-3">
+        <div class="card-header">📋 Agendamentos do Dia</div>
+        <div class="card-body" id="daySchedules">
+          <p class="text-muted">Selecione uma data para ver os agendamentos.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">⏰ Horários Disponíveis</div>
+        <div class="card-body">
+          <p class="text-muted" style="font-size:.83rem;margin-bottom:10px">Horários já reservados aparecem em vermelho.</p>
+          <div class="time-slot-grid" id="timeSlots"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Schedules Table -->
+  <div class="section-header mt-3">
+    <h2>🗓️ Agendamentos Recentes</h2>
+    <a href="verificar-agendamentos.html" class="btn btn-secondary btn-sm">Ver Todos</a>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Responsável</th><th>Turma</th><th>Data</th><th>Horário</th><th>Propósito</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="recentAgs"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  // Populate time selects
+  const times = [];
+  for (let h = 7; h <= 17; h++) {
+    times.push(`${String(h).padStart(2,'0')}:00`);
+    times.push(`${String(h).padStart(2,'0')}:30`);
+  }
+  times.push('18:00');
+
+  ['horarioInicio','horarioFim'].forEach(id => {
+    const sel = document.getElementById(id);
+    times.forEach(t => {
+      const o = document.createElement('option'); o.value = t; o.textContent = t;
+      sel.appendChild(o);
+    });
+  });
+
+  // Populate datalist
+  const dl = document.getElementById('pessoasList');
+  Pessoas.getAll().filter(p=>p.tipo==='Professor').forEach(p => {
+    const o = document.createElement('option'); o.value = p.nome; dl.appendChild(o);
+  });
+
+  // Set default date
+  document.getElementById('data').value = today();
+  document.getElementById('data').min = today();
+
+  let editingId = null;
+
+  function checkConflict() {
+    const data = document.getElementById('data').value;
+    const ini = document.getElementById('horarioInicio').value;
+    const fim = document.getElementById('horarioFim').value;
+    if (!data || !ini || !fim) return false;
+    const conflito = Agendamentos.getAll().find(a =>
+      a.id !== editingId && a.data === data && a.status !== 'cancelado' &&
+      !(fim <= a.horarioInicio || ini >= a.horarioFim)
+    );
+    document.getElementById('conflictAlert').style.display = conflito ? 'block' : 'none';
+    return !!conflito;
+  }
+
+  function updateDayView() {
+    const data = document.getElementById('data').value;
+    if (!data) return;
+    const ags = Agendamentos.getAll().filter(a => a.data === data && a.status !== 'cancelado');
+    const occupied = new Set();
+    ags.forEach(a => {
+      times.forEach(t => { if (t >= a.horarioInicio && t < a.horarioFim) occupied.add(t); });
+    });
+
+    // Time slots
+    document.getElementById('timeSlots').innerHTML = times.filter(t=>t>='07:00'&&t<='17:30').map(t => `
+      <div class="time-slot ${occupied.has(t)?'occupied':''}" onclick="${!occupied.has(t)?`selectTime('${t}')`:''}">
+        ${occupied.has(t)?'🔴':''} ${t}
+      </div>`).join('');
+
+    // Day schedules
+    if (!ags.length) {
+      document.getElementById('daySchedules').innerHTML = `<p class="text-muted">Nenhum agendamento para ${formatDate(data)}.</p>`;
+      return;
+    }
+    document.getElementById('daySchedules').innerHTML = ags.sort((a,b)=>a.horarioInicio.localeCompare(b.horarioInicio)).map(a => `
+      <div style="padding:10px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--primary);font-size:.87rem">
+        <div class="fw-bold">${a.horarioInicio} – ${a.horarioFim}: ${a.turma}</div>
+        <div class="text-muted">${a.responsavel} — ${a.proposito}</div>
+      </div>`).join('');
+  }
+
+  function selectTime(t) {
+    document.getElementById('horarioInicio').value = t;
+    const idx = times.indexOf(t);
+    document.getElementById('horarioFim').value = times[Math.min(idx+2, times.length-1)];
+    checkConflict();
+  }
+
+  document.getElementById('data').addEventListener('change', () => { updateDayView(); checkConflict(); });
+  document.getElementById('horarioInicio').addEventListener('change', checkConflict);
+  document.getElementById('horarioFim').addEventListener('change', checkConflict);
+
+  document.getElementById('agForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const ini = document.getElementById('horarioInicio').value;
+    const fim = document.getElementById('horarioFim').value;
+    if (fim <= ini) { showToast('O horário de término deve ser após o início.', 'error'); return; }
+
+    const id = editingId || DB.generateId();
+    const old = Agendamentos.getById(id);
+    Agendamentos.save({
+      id,
+      responsavel: document.getElementById('responsavel').value.trim(),
+      turma: document.getElementById('turma').value.trim(),
+      data: document.getElementById('data').value,
+      horarioInicio: ini,
+      horarioFim: fim,
+      proposito: document.getElementById('proposito').value.trim(),
+      status: document.getElementById('status').value
+    });
+    showToast(editingId ? 'Agendamento atualizado!' : 'Sala agendada com sucesso!');
+    resetForm();
+    updateDayView();
+    renderRecent();
+  });
+
+  function editAg(id) {
+    const a = Agendamentos.getById(id);
+    if (!a) return;
+    editingId = id;
+    document.getElementById('responsavel').value = a.responsavel;
+    document.getElementById('turma').value = a.turma;
+    document.getElementById('data').value = a.data;
+    document.getElementById('horarioInicio').value = a.horarioInicio;
+    document.getElementById('horarioFim').value = a.horarioFim;
+    document.getElementById('proposito').value = a.proposito;
+    document.getElementById('status').value = a.status;
+    document.getElementById('submitBtn').textContent = '💾 Atualizar';
+    document.getElementById('cancelBtn').style.display = '';
+    document.getElementById('formHeader').textContent = '✏️ Editando Agendamento';
+    updateDayView();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function cancelAg(id) {
+    if (confirm('Cancelar este agendamento?')) {
+      const a = Agendamentos.getById(id);
+      if (a) { a.status='cancelado'; Agendamentos.save(a); }
+      showToast('Agendamento cancelado.', 'warning');
+      renderRecent();
+    }
+  }
+
+  function resetForm() {
+    editingId = null;
+    document.getElementById('agForm').reset();
+    document.getElementById('data').value = today();
+    document.getElementById('submitBtn').textContent = '💾 Agendar';
+    document.getElementById('cancelBtn').style.display = 'none';
+    document.getElementById('formHeader').textContent = '📅 Novo Agendamento';
+    document.getElementById('conflictAlert').style.display = 'none';
+  }
+  document.getElementById('cancelBtn').addEventListener('click', resetForm);
+
+  function renderRecent() {
+    const ags = Agendamentos.getAll().filter(a=>a.status!=='cancelado')
+      .sort((a,b)=>a.data.localeCompare(b.data)).slice(0,10);
+    const tbody = document.getElementById('recentAgs');
+    if (!ags.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Nenhum agendamento</td></tr>`; return;
+    }
+    tbody.innerHTML = ags.map(a => `<tr>
+      <td>${a.responsavel}</td>
+      <td>${a.turma}</td>
+      <td>${formatDate(a.data)}</td>
+      <td>${a.horarioInicio} – ${a.horarioFim}</td>
+      <td>${a.proposito}</td>
+      <td>${statusBadge(a.status)}</td>
+      <td>
+        <button class="btn btn-secondary btn-xs" onclick="editAg('${a.id}')">✏️</button>
+        <button class="btn btn-danger btn-xs" onclick="cancelAg('${a.id}')">❌</button>
+      </td>
+    </tr>`).join('');
+  }
+
+  updateDayView();
+  renderRecent();
+</script>
+</body>
+</html>

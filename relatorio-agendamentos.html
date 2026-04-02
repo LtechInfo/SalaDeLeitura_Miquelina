@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório de Agendamentos – Sala de Leitura</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+    @media(max-width:768px){ .charts-grid{grid-template-columns:1fr;} }
+    .chart-card { background:#fff; border-radius:var(--radius); box-shadow:var(--card-shadow); border:1px solid var(--border); overflow:hidden; }
+    .chart-title { padding:14px 18px; font-weight:700; font-size:.95rem; color:var(--primary-dark); border-bottom:1px solid var(--border); }
+    .chart-body { padding:16px; }
+    .rank-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0; }
+    .rank-num { width:26px;height:26px;border-radius:50%;background:var(--primary-xlight);color:var(--primary-dark);display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0; }
+    .rank-bar-wrap { flex:1; }
+    .rank-bar { height:8px; background:linear-gradient(90deg,var(--primary),var(--accent)); border-radius:4px; }
+  </style>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">📚</div>
+    <div class="header-titles">
+      <h1>SALA DE LEITURA</h1>
+      <p>EE Miquelina Pedroso Magnani Professora</p>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="btn-home">🏠 Início</a>
+      <a href="agendar-sala.html">📅 Agendar</a>
+      <a href="verificar-agendamentos.html">🗓️ Ver Agenda</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page-container">
+  <div class="page-title"><span>📈</span> Relatório de Agendamentos</div>
+  <div class="page-subtitle">Análise completa dos agendamentos da sala de leitura</div>
+
+  <div class="filter-bar mb-3">
+    <div class="form-group" style="flex:1;min-width:130px">
+      <label>Data Início</label>
+      <input type="date" id="dateStart">
+    </div>
+    <div class="form-group" style="flex:1;min-width:130px">
+      <label>Data Fim</label>
+      <input type="date" id="dateEnd">
+    </div>
+    <div class="form-group" style="flex:1;min-width:130px">
+      <label>Status</label>
+      <select id="statusFilter">
+        <option value="">Todos</option>
+        <option value="confirmado">Confirmado</option>
+        <option value="pendente">Pendente</option>
+        <option value="cancelado">Cancelado</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="applyFilters()">📈 Gerar</button>
+      <button class="btn btn-secondary" onclick="clearFilters()">🔄 Limpar</button>
+      <button class="btn btn-success" onclick="exportCSV()">⬇️ CSV</button>
+      <button class="btn btn-secondary" onclick="window.print()">🖨️</button>
+    </div>
+  </div>
+
+  <div class="stats-bar mb-3">
+    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-info"><h3 id="sTotal">0</h3><p>Total</p></div></div>
+    <div class="stat-card success"><div class="stat-icon">✅</div><div class="stat-info"><h3 id="sConfirm">0</h3><p>Confirmados</p></div></div>
+    <div class="stat-card warning"><div class="stat-icon">⏳</div><div class="stat-info"><h3 id="sPend">0</h3><p>Pendentes</p></div></div>
+    <div class="stat-card danger"><div class="stat-icon">❌</div><div class="stat-info"><h3 id="sCancel">0</h3><p>Cancelados</p></div></div>
+    <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-info"><h3 id="sHoras">0h</h3><p>Total de Horas</p></div></div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">📊 Status dos Agendamentos</div>
+      <div class="chart-body"><canvas id="statusChart" height="220"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">📈 Agendamentos por Mês</div>
+      <div class="chart-body"><canvas id="monthChart" height="220"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">👥 Turmas com Mais Agendamentos</div>
+      <div class="chart-body" id="topTurmasChart"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">⏰ Horários Mais Utilizados</div>
+      <div class="chart-body"><canvas id="horariosChart" height="220"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <h2>📋 Detalhamento</h2>
+    <span class="total-badge" id="tableCount">0 registros</span>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Responsável</th><th>Turma</th><th>Data</th><th>Horário</th><th>Duração</th><th>Propósito</th><th>Status</th></tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  let filtered = [];
+  let chartStatus = null, chartMonth = null, chartHorarios = null;
+
+  const d = new Date();
+  document.getElementById('dateStart').value = `${d.getFullYear()}-01-01`;
+  document.getElementById('dateEnd').value = today();
+
+  function calcDuration(ini, fim) {
+    const [hi,mi] = ini.split(':').map(Number);
+    const [hf,mf] = fim.split(':').map(Number);
+    return ((hf*60+mf)-(hi*60+mi))/60;
+  }
+
+  function applyFilters() {
+    const ds = document.getElementById('dateStart').value;
+    const de = document.getElementById('dateEnd').value;
+    const sf = document.getElementById('statusFilter').value;
+
+    filtered = Agendamentos.getAll().filter(a => {
+      if (ds && a.data < ds) return false;
+      if (de && a.data > de) return false;
+      if (sf && a.status !== sf) return false;
+      return true;
+    });
+
+    updateStats();
+    renderCharts();
+    renderTable();
+  }
+
+  function clearFilters() {
+    document.getElementById('dateStart').value = `${d.getFullYear()}-01-01`;
+    document.getElementById('dateEnd').value = today();
+    document.getElementById('statusFilter').value = '';
+    applyFilters();
+  }
+
+  function updateStats() {
+    const total = filtered.length;
+    const confirm = filtered.filter(a=>a.status==='confirmado').length;
+    const pend = filtered.filter(a=>a.status==='pendente').length;
+    const cancel = filtered.filter(a=>a.status==='cancelado').length;
+    const horas = filtered.filter(a=>a.status!=='cancelado').reduce((s,a)=>s+calcDuration(a.horarioInicio,a.horarioFim),0);
+    document.getElementById('sTotal').textContent = total;
+    document.getElementById('sConfirm').textContent = confirm;
+    document.getElementById('sPend').textContent = pend;
+    document.getElementById('sCancel').textContent = cancel;
+    document.getElementById('sHoras').textContent = `${horas.toFixed(1)}h`;
+  }
+
+  function renderCharts() {
+    // Status donut
+    if (chartStatus) chartStatus.destroy();
+    chartStatus = new Chart(document.getElementById('statusChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Confirmado','Pendente','Cancelado'],
+        datasets: [{ data: [
+          filtered.filter(a=>a.status==='confirmado').length,
+          filtered.filter(a=>a.status==='pendente').length,
+          filtered.filter(a=>a.status==='cancelado').length
+        ], backgroundColor:['#26a69a','#fb8c00','#e53935'], borderWidth:2, borderColor:'#fff' }]
+      },
+      options:{ plugins:{legend:{position:'bottom'}}, cutout:'62%' }
+    });
+
+    // Monthly bar
+    const months = {};
+    filtered.filter(a=>a.status!=='cancelado').forEach(a => {
+      const m = a.data.substring(0,7);
+      months[m] = (months[m]||0)+1;
+    });
+    const sortedM = Object.keys(months).sort();
+    const mNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    if (chartMonth) chartMonth.destroy();
+    if (sortedM.length) {
+      chartMonth = new Chart(document.getElementById('monthChart'), {
+        type: 'bar',
+        data: {
+          labels: sortedM.map(m=>{const[y,mo]=m.split('-');return`${mNames[parseInt(mo)-1]}/${y.slice(2)}`;}),
+          datasets:[{label:'Agendamentos',data:sortedM.map(m=>months[m]),backgroundColor:'rgba(0,188,212,.7)',borderColor:'#0097A7',borderWidth:2,borderRadius:6}]
+        },
+        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+      });
+    }
+
+    // Top turmas
+    const turmas = {};
+    filtered.filter(a=>a.status!=='cancelado').forEach(a=>{turmas[a.turma]=(turmas[a.turma]||0)+1;});
+    const topT = Object.entries(turmas).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    const maxT = topT[0]?.[1]||1;
+    document.getElementById('topTurmasChart').innerHTML = topT.length ? topT.map(([t,n],i)=>`
+      <div class="rank-item">
+        <div class="rank-num">${i+1}</div>
+        <div class="rank-bar-wrap">
+          <div style="font-size:.85rem;font-weight:600">${t}</div>
+          <div class="rank-bar" style="width:${(n/maxT*100).toFixed(0)}%;margin-top:4px"></div>
+        </div>
+        <span class="badge badge-primary">${n}x</span>
+      </div>`).join('') : '<p class="text-muted text-center" style="padding:20px">Sem dados</p>';
+
+    // Horários
+    const horarios = {};
+    filtered.filter(a=>a.status!=='cancelado').forEach(a=>{horarios[a.horarioInicio]=(horarios[a.horarioInicio]||0)+1;});
+    const sortedH = Object.entries(horarios).sort((a,b)=>a[0].localeCompare(b[0]));
+    if (chartHorarios) chartHorarios.destroy();
+    if (sortedH.length) {
+      chartHorarios = new Chart(document.getElementById('horariosChart'), {
+        type: 'bar',
+        data: {
+          labels: sortedH.map(h=>h[0]),
+          datasets:[{label:'Agendamentos',data:sortedH.map(h=>h[1]),backgroundColor:'rgba(38,166,154,.7)',borderColor:'#1b5e20',borderWidth:2,borderRadius:4}]
+        },
+        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+      });
+    }
+  }
+
+  function renderTable() {
+    document.getElementById('tableCount').textContent = `${filtered.length} registros`;
+    const tbody = document.getElementById('tableBody');
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Nenhum registro</td></tr>`; return;
+    }
+    tbody.innerHTML = [...filtered].sort((a,b)=>b.data.localeCompare(a.data)).map(a=>`<tr>
+      <td>${a.responsavel}</td>
+      <td>${a.turma}</td>
+      <td>${formatDate(a.data)}</td>
+      <td>${a.horarioInicio} – ${a.horarioFim}</td>
+      <td>${calcDuration(a.horarioInicio,a.horarioFim).toFixed(1)}h</td>
+      <td>${a.proposito}</td>
+      <td>${statusBadge(a.status)}</td>
+    </tr>`).join('');
+  }
+
+  function exportCSV() {
+    const rows = [['Responsável','Turma','Data','Horário Início','Horário Fim','Duração','Propósito','Status']];
+    filtered.forEach(a=>rows.push([a.responsavel,a.turma,a.data,a.horarioInicio,a.horarioFim,calcDuration(a.horarioInicio,a.horarioFim).toFixed(1)+'h',a.proposito,a.status]));
+    const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const el = document.createElement('a');
+    el.href = URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+    el.download = `relatorio_agendamentos_${today()}.csv`;
+    el.click();
+    showToast('Relatório exportado!');
+  }
+
+  applyFilters();
+</script>
+</body>
+</html>
