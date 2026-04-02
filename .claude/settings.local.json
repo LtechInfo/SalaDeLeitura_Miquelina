@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -l \"fonts.googleapis\" e:/ARQUIVOS/Documents/GitHub/SalaDeLeitura_Miquelina/*.html)"
+    ]
+  }
+}
