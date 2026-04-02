@@ -3,6 +3,45 @@
 // Shared Utilities & Data Management
 // =============================================
 
+// ---- Auth ----
+const Auth = {
+  ADMIN_USER_KEY: 'adminCredentials',
+  SESSION_KEY: 'slAdminLogged',
+  ALUNO_KEY: 'slAlunoRA',
+
+  initAdmin: () => {
+    if (!localStorage.getItem(Auth.ADMIN_USER_KEY)) {
+      localStorage.setItem(Auth.ADMIN_USER_KEY, JSON.stringify({ user: 'admin', pass: 'admin123' }));
+    }
+  },
+  loginAdmin: (user, pass) => {
+    const creds = JSON.parse(localStorage.getItem(Auth.ADMIN_USER_KEY) || '{}');
+    if (user === creds.user && pass === creds.pass) {
+      sessionStorage.setItem(Auth.SESSION_KEY, 'true');
+      return true;
+    }
+    return false;
+  },
+  loginAluno: (ra) => {
+    const pessoas = DB.get('pessoas');
+    const found = pessoas.find(p => p.ra === ra.trim());
+    if (found) {
+      sessionStorage.setItem(Auth.ALUNO_KEY, found.ra);
+      sessionStorage.setItem('slAlunoId', found.id);
+      return found;
+    }
+    return null;
+  },
+  isAdmin: () => sessionStorage.getItem(Auth.SESSION_KEY) === 'true',
+  isAluno: () => !!sessionStorage.getItem(Auth.ALUNO_KEY),
+  getAlunoRA: () => sessionStorage.getItem(Auth.ALUNO_KEY),
+  getAlunoId: () => sessionStorage.getItem('slAlunoId'),
+  logoutAdmin: () => { sessionStorage.removeItem(Auth.SESSION_KEY); window.location.href = 'login.html'; },
+  logoutAluno: () => { sessionStorage.removeItem(Auth.ALUNO_KEY); sessionStorage.removeItem('slAlunoId'); window.location.href = 'login.html'; },
+  guardAdmin: () => { if (!Auth.isAdmin()) window.location.replace('login.html'); },
+  guardAluno: () => { if (!Auth.isAluno()) window.location.replace('login.html'); },
+};
+
 const DB = {
   get: (key) => {
     try {
@@ -235,6 +274,7 @@ function statusBadge(status) {
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
+  Auth.initAdmin();
   initSampleData();
   Emprestimos.updateStatus();
 });

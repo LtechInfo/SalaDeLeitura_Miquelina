@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>if(sessionStorage.getItem('slAdminLogged')!=='true'){window.location.replace('login.html');}</script>
   <title>Cadastrar Livros – Sala de Leitura</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -19,6 +20,7 @@
       <a href="consultar-livros.html">🔍 Consultar</a>
       <a href="lista-geral.html">📋 Lista Geral</a>
     </nav>
+      <button onclick="Auth.logoutAdmin()" class="btn btn-sm" style="background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.2);border-radius:20px;padding:5px 12px;font-size:.78rem;cursor:pointer;">Sair</button>
   </div>
 </header>
 

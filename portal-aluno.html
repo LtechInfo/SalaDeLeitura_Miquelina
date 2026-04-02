@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>if(!sessionStorage.getItem('slAlunoRA')){window.location.replace('login.html');}</script>
   <title>Portal do Aluno – Sala de Leitura</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
@@ -83,36 +84,15 @@
     <button onclick="carouselNext()">›</button>
   </div>
 
-  <!-- Login / Portal -->
-  <div id="loginSection">
-    <div class="portal-hero">
-      <div>
-        <h2>Portal do Aluno</h2>
-        <p>Acesse com seu RA para ver seus empréstimos, histórico e consultar o acervo.</p>
-      </div>
-    </div>
-    <div class="login-panel">
-      <div style="font-size:3rem;margin-bottom:12px">👨‍🎓</div>
-      <h2>Entrar no Portal</h2>
-      <p>Digite seu nome ou RA para acessar seu histórico de empréstimos.</p>
-      <div style="position:relative;margin-bottom:14px">
-        <input type="text" id="loginInput" placeholder="Nome ou RA do aluno..." style="width:100%;padding:12px 16px;font-size:1rem;" autocomplete="off">
-        <div id="loginSuggestions" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--primary-light);border-top:none;border-radius:0 0 10px 10px;z-index:50;display:none;max-height:200px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,.12);"></div>
-      </div>
-      <button class="btn btn-primary w-100" onclick="login()">🔓 Acessar Portal</button>
-      <p style="margin-top:14px;font-size:.82rem;color:var(--text-light)">Apenas para consulta — nenhuma senha necessária</p>
-    </div>
-  </div>
-
-  <!-- Student Dashboard (hidden until login) -->
-  <div id="studentDashboard" style="display:none">
+  <!-- Student Dashboard -->
+  <div id="studentDashboard">
     <div class="student-header">
       <div class="student-avatar" id="studentAvatar">?</div>
       <div style="flex:1">
         <div class="fw-bold" style="font-size:1.1rem" id="studentName"></div>
         <div class="text-muted" id="studentInfo"></div>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="logout()">🚪 Sair</button>
+      <button class="btn btn-secondary btn-sm" onclick="Auth.logoutAluno()">🚪 Sair</button>
     </div>
 
     <!-- Stats bar -->
@@ -210,54 +190,21 @@
   function carouselNext() { const n=document.querySelectorAll('.carousel-slide').length; goSlide((carouselIdx+1)%n); }
   function carouselPrev() { const n=document.querySelectorAll('.carousel-slide').length; goSlide((carouselIdx-1+n)%n); }
 
-  // ---- Login ----
+  // ---- Session-based student init ----
   let currentStudent = null;
 
-  document.getElementById('loginInput').addEventListener('input', function() {
-    const q = this.value.toLowerCase().trim();
-    const sug = document.getElementById('loginSuggestions');
-    if (!q) { sug.style.display='none'; return; }
-    const matches = Pessoas.getAll().filter(p=>p.tipo==='Aluno'&&(p.nome.toLowerCase().includes(q)||p.ra.toLowerCase().includes(q))).slice(0,6);
-    if (!matches.length) { sug.style.display='none'; return; }
-    sug.style.display='block';
-    sug.innerHTML = matches.map(p=>`<div onclick="loginAs('${p.id}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:.9rem;transition:.15s;" onmouseover="this.style.background='var(--primary-xlight)'" onmouseout="this.style.background=''">
-      <strong>${p.nome}</strong><br><span style="font-size:.8rem;color:var(--text-light)">RA: ${p.ra} | ${p.turma||'-'}</span>
-    </div>`).join('');
-  });
-
-  document.addEventListener('click', e=>{
-    if (!e.target.closest('#loginInput')&&!e.target.closest('#loginSuggestions'))
-      document.getElementById('loginSuggestions').style.display='none';
-  });
-
-  function login() {
-    const q = document.getElementById('loginInput').value.trim();
-    if (!q) { showToast('Digite seu nome ou RA.','error'); return; }
-    const p = Pessoas.getAll().find(ps=>ps.tipo==='Aluno'&&(ps.nome.toLowerCase()===q.toLowerCase()||ps.ra===q));
-    if (!p) { showToast('Aluno não encontrado. Verifique seu nome ou RA.','error'); return; }
-    loginAs(p.id);
-  }
-
-  function loginAs(id) {
+  function initPortal() {
+    initSampleData();
+    Auth.guardAluno();
+    const id = Auth.getAlunoId();
     const p = Pessoas.getById(id);
-    if (!p) return;
+    if (!p) { Auth.logoutAluno(); return; }
     currentStudent = p;
-    document.getElementById('loginSection').style.display='none';
-    document.getElementById('studentDashboard').style.display='';
-    document.getElementById('publicAcervo').style.display='none';
     document.getElementById('studentAvatar').textContent = p.nome.charAt(0).toUpperCase();
     document.getElementById('studentName').textContent = p.nome;
     document.getElementById('studentInfo').textContent = `${p.tipo} · RA: ${p.ra} · Turma: ${p.turma||'-'}`;
     loadStudentData();
-  }
-
-  function logout() {
-    currentStudent = null;
-    document.getElementById('loginSection').style.display='';
-    document.getElementById('studentDashboard').style.display='none';
-    document.getElementById('publicAcervo').style.display='';
-    document.getElementById('loginInput').value='';
-    switchTab('loans');
+    buildCarousel();
   }
 
   function loadStudentData() {
@@ -370,8 +317,7 @@
       </div>`).join('');
   }
 
-  buildCarousel();
-  renderPublicBooks();
+  initPortal();
 </script>
 </body>
 </html>
